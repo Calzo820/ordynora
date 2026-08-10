@@ -1,21 +1,22 @@
-# Report nuova patch priorità
+# EasyMenu — file modificati
 
-## Rimossi dal pacchetto
-- `.env`
-- `node_modules/`
-- `backend/node_modules/`
-- `dist/`
+La patch contiene 21 file, inclusi istruzioni e report.
 
-## Aggiunti/modificati principali
-- Docker produzione multi-stage Node 20.
-- `docker-compose.prod.yml` con PostgreSQL e healthcheck.
-- `.dockerignore` e `.gitignore` rafforzati.
-- Sessioni refresh token in cookie httpOnly con modello Prisma `UserSession`.
-- Rotte `/auth/refresh` e `/auth/logout`.
-- Frontend con `credentials: include` e retry refresh su 401.
-- Test minimi Node test + Supertest su health, login validation, ordine, stato ordine, webhook Stripe.
-- Documenti privacy, termini, backup DB, supporto e deploy produzione.
-- Hook/componente per avviare refactoring ordinato delle pagine grandi.
+## Interventi inclusi
 
-## Nota
-Il refactoring completo delle pagine grandi richiede test visivi/funzionali dedicati; qui sono stati aggiunti mattoni riusabili senza cambiare pesantemente la UX esistente.
+- landing senza sezione integrazioni o roadmap;
+- card prezzo cliccabili con richiesta WhatsApp precompilata;
+- CTA **Richiedi demo gratuita** via WhatsApp o email;
+- demo gratuita riservata ai primi 3 ristoranti;
+- Stripe Connect e pagamenti dal tavolo indicati come disponibili prossimamente e bloccati lato server;
+- base multilingua IT, EN, DE, ES e RU per landing e demo;
+- traduzione automatica opzionale per altre lingue;
+- correzione contrasto della card Semestrale;
+- test automatici per traduzioni e blocco pagamenti dal tavolo.
+
+## Verifiche
+
+- lint superato;
+- build superata;
+- 7 test automatici superati, 0 falliti;
+- verifica browser desktop e mobile superata.

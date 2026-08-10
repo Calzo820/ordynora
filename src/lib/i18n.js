@@ -66,7 +66,7 @@ export async function getTranslatedBundle(namespace, locale, sourceContent) {
   const normalizedLocale = String(locale || "it");
   if (baseLanguage(normalizedLocale) === "it") return sourceContent;
 
-  const cacheKey = `ordynora_i18n_${CACHE_VERSION}_${namespace}_${normalizedLocale}_${sourceFingerprint(sourceContent)}`;
+  const cacheKey = `easymenu_i18n_${CACHE_VERSION}_${namespace}_${normalizedLocale}_${sourceFingerprint(sourceContent)}`;
   const cached = readCachedBundle(cacheKey);
   if (cached) return cached;
   if (bundlePromises.has(cacheKey)) return bundlePromises.get(cacheKey);

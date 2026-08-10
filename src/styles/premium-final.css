@@ -367,6 +367,16 @@ button:disabled,
   box-shadow: 0 12px 34px rgba(18, 63, 59, 0.11) !important;
 }
 
+.landing-price-card.featured span {
+  border-color: #b8ddd5 !important;
+  background: #dcefe9 !important;
+  color: #0f5f55 !important;
+}
+
+.landing-price-card.featured small {
+  color: #0f5f55 !important;
+}
+
 .landing-price-card strong {
   color: var(--premium-brand-strong) !important;
 }

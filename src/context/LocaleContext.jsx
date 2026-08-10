@@ -1,19 +1,22 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "ordynora_locale";
-const LEGACY_STORAGE_KEY = "easymenu_locale";
+const STORAGE_KEY = "easymenu_locale";
 const RTL_LANGUAGES = new Set(["ar", "dv", "fa", "he", "ku", "ps", "sd", "ug", "ur", "yi"]);
 
 const LocaleContext = createContext(null);
 
 function getInitialLocale() {
-  const savedLocale = window.localStorage.getItem(STORAGE_KEY)
-    || window.localStorage.getItem(LEGACY_STORAGE_KEY);
-  if (!window.localStorage.getItem(STORAGE_KEY) && savedLocale) {
-    window.localStorage.setItem(STORAGE_KEY, savedLocale);
+  if (typeof window === "undefined") return "it";
+
+  let savedLocale = "";
+  try {
+    savedLocale = window.localStorage.getItem(STORAGE_KEY) || "";
+  } catch {
+    // Alcuni browser bloccano lo storage: la lingua del browser resta un fallback valido.
   }
-  const candidate = savedLocale || window.navigator.language || "it";
+
+  const candidate = savedLocale || window.navigator?.language || "it";
   try {
     return Intl.getCanonicalLocales(String(candidate).replaceAll("_", "-"))[0] || "it";
   } catch {
@@ -25,7 +28,11 @@ export function LocaleProvider({ children }) {
   const [locale, setLocale] = useState(getInitialLocale);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, locale);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, locale);
+    } catch {
+      // Il cambio lingua continua a funzionare anche senza persistenza locale.
+    }
     document.documentElement.lang = locale;
     document.documentElement.dir = RTL_LANGUAGES.has(locale.split("-")[0].toLowerCase()) ? "rtl" : "ltr";
   }, [locale]);

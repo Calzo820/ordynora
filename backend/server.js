@@ -178,7 +178,7 @@ app.use("/i18n", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 30 })
 
 app.get("/", (_req, res) => {
   res.json({
-    message: "Backend Ordynora attivo",
+    message: "Backend EasyMenu attivo",
     environment: envStatus.nodeEnv,
     paymentsEnabled: envStatus.paymentsEnabled,
     webhookEnabled: envStatus.webhookEnabled,
@@ -186,7 +186,7 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, service: "ordynora-backend", timestamp: new Date().toISOString() });
+  res.json({ ok: true, service: "easymenu-backend", timestamp: new Date().toISOString() });
 });
 
 app.get("/ready", async (_req, res) => {

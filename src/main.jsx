@@ -4,9 +4,9 @@ import App from "./App.jsx";
 import { LocaleProvider } from "./context/LocaleContext.jsx";
 
 import "./index.css";
-import "./styles/ordynora-v2.css";
-import "./styles/ordynora-os.css";
-import "./styles/ordynora-ux-pro.css";
+import "./styles/easymenu-v2.css";
+import "./styles/easymenu-os.css";
+import "./styles/easymenu-ux-pro.css";
 import "./styles/operational-ux.css";
 import "./styles/foundation.css";
 import "./styles/premium-final.css";

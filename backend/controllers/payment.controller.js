@@ -12,6 +12,18 @@ function getStripe() {
   return new Stripe(key, { apiVersion: "2025-03-31.basil" });
 }
 
+function tablePaymentsEnabled() {
+  return String(process.env.PUBLIC_TABLE_PAYMENTS_ENABLED || "").toLowerCase() === "true";
+}
+
+function tablePaymentsComingSoon(res) {
+  return res.status(503).json({
+    available: false,
+    code: "TABLE_PAYMENTS_COMING_SOON",
+    message: "I pagamenti dal tavolo non sono ancora disponibili. La funzione sarà attivata prossimamente.",
+  });
+}
+
 function getClientUrl() {
   return String(process.env.CLIENT_URL || process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
 }
@@ -55,16 +67,25 @@ async function persistConnectStatus(restaurantId, account) {
 
 export async function getStripeConnectStatus(req, res) {
   try {
+    if (!tablePaymentsEnabled()) {
+      return res.json({
+        ...connectStatus(null),
+        available: false,
+        code: "TABLE_PAYMENTS_COMING_SOON",
+        message: "I pagamenti dal tavolo saranno disponibili prossimamente.",
+      });
+    }
+
     const restaurant = await prisma.restaurant.findUnique({ where: { id: req.user.restaurantId } });
     if (!restaurant) return res.status(404).json({ message: "Ristorante non trovato" });
-    if (!restaurant.stripeConnectAccountId) return res.json(connectStatus(restaurant));
+    if (!restaurant.stripeConnectAccountId) return res.json({ ...connectStatus(restaurant), available: true });
 
     const stripe = getStripe();
-    if (!stripe) return res.json({ ...connectStatus(restaurant), stripeConfigured: false });
+    if (!stripe) return res.json({ ...connectStatus(restaurant), available: true, stripeConfigured: false });
 
     const account = await stripe.accounts.retrieve(restaurant.stripeConnectAccountId);
     await persistConnectStatus(restaurant.id, account);
-    return res.json({ ...connectStatus(restaurant, account), stripeConfigured: true });
+    return res.json({ ...connectStatus(restaurant, account), available: true, stripeConfigured: true });
   } catch (error) {
     console.error("getStripeConnectStatus error:", error);
     return res.status(500).json({ message: "Non è stato possibile verificare il conto Stripe del ristorante." });
@@ -73,6 +94,8 @@ export async function getStripeConnectStatus(req, res) {
 
 export async function createStripeConnectOnboarding(req, res) {
   try {
+    if (!tablePaymentsEnabled()) return tablePaymentsComingSoon(res);
+
     const stripe = getStripe();
     if (!stripe) return res.status(501).json({ message: "Stripe non è configurato sul backend." });
 
@@ -119,6 +142,8 @@ export async function createStripeConnectOnboarding(req, res) {
 
 export async function createStripeConnectDashboard(req, res) {
   try {
+    if (!tablePaymentsEnabled()) return tablePaymentsComingSoon(res);
+
     const stripe = getStripe();
     if (!stripe) return res.status(501).json({ message: "Stripe non è configurato sul backend." });
 
@@ -358,7 +383,7 @@ export async function getPublicPaymentSummary(req, res) {
       include: { payments: { orderBy: { createdAt: "asc" } }, table: true, restaurant: true },
     });
     const split = paymentSplitSummary(order, order.payments);
-    const stripeReady = process.env.PUBLIC_TABLE_PAYMENTS_ENABLED === "true" && Boolean(
+    const stripeReady = tablePaymentsEnabled() && Boolean(
       order.restaurant?.stripeConnectAccountId &&
       order.restaurant?.stripeConnectChargesEnabled &&
       process.env.STRIPE_CONNECT_WEBHOOK_SECRET
@@ -410,11 +435,7 @@ export async function createPublicStripeCheckout(req, res) {
   let reservedPaymentId = null;
 
   try {
-    if (process.env.PUBLIC_TABLE_PAYMENTS_ENABLED !== "true") {
-      return res.status(503).json({
-        message: "Il pagamento dal tavolo sarà disponibile prossimamente. Per ora chiedi il conto al personale.",
-      });
-    }
+    if (!tablePaymentsEnabled()) return tablePaymentsComingSoon(res);
 
     const stripe = getStripe();
     if (!stripe) {

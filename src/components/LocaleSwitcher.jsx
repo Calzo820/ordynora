@@ -3,11 +3,11 @@ import { useLocale } from "../context/LocaleContext";
 import { getAvailableLanguages, VERIFIED_LANGUAGES } from "../lib/i18n";
 
 const groupLabels = {
-  it: { verified: "Traduzioni verificate", automatic: "Traduzione automatica" },
-  en: { verified: "Verified translations", automatic: "Automatic translation" },
-  de: { verified: "Geprüfte Übersetzungen", automatic: "Automatische Übersetzung" },
-  es: { verified: "Traducciones verificadas", automatic: "Traducción automática" },
-  ru: { verified: "Проверенные переводы", automatic: "Автоматический перевод" },
+  it: { label: "Lingua", verified: "Traduzioni verificate", automatic: "Traduzione automatica" },
+  en: { label: "Language", verified: "Verified translations", automatic: "Automatic translation" },
+  de: { label: "Sprache", verified: "Geprüfte Übersetzungen", automatic: "Automatische Übersetzung" },
+  es: { label: "Idioma", verified: "Traducciones verificadas", automatic: "Traducción automática" },
+  ru: { label: "Язык", verified: "Проверенные переводы", automatic: "Автоматический перевод" },
 };
 
 function languageName(code, displayLocale) {
@@ -51,8 +51,8 @@ export default function LocaleSwitcher({ variant = "dark" }) {
 
   return (
     <label className={`locale-switcher locale-switcher--${variant}`} title={automaticConfigured ? labels.automatic : labels.verified}>
-      <span className="sr-only">Language</span>
-      <select value={locale} onChange={(event) => setLocale(event.target.value)} aria-label="Language">
+      <span className="sr-only">{labels.label}</span>
+      <select value={locale} onChange={(event) => setLocale(event.target.value)} aria-label={labels.label}>
         <optgroup label={labels.verified}>
           {verified.map((language) => <option key={language.code} value={language.code}>{language.code.toUpperCase()} · {language.name}</option>)}
         </optgroup>
