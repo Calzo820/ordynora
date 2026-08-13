@@ -1,9 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
-import logoOrdynora from "../assets/logo-ordynora.png";
+import logoOrdynora from "../assets/logo-easymenu.png";
 import RestaurantDataControls from "../components/RestaurantDataControls.jsx";
 import "../styles/legal.css";
 
-const contact = "support@ordynora.com";
+const contact = "easy.menu.service@gmail.com";
 const phone = "+39 324 046 7723";
 
 const pages = {

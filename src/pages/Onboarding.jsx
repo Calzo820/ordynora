@@ -75,7 +75,7 @@ function QrPrintDocument({ preview = false, layout, qrLinks, restaurant }) {
                 <QRCodeSVG value={table.link} size={260} includeMargin />
                 <div><strong>{table.name}</strong><span>Apri la fotocamera e inquadra il QR</span><small>Puoi anche chiedere il conto e pagare dal telefono quando il servizio è attivo.</small></div>
               </div>
-              <footer>support@ordynora.com · Ordynora</footer>
+              <footer>easy.menu.service@gmail.com · Ordynora</footer>
             </article>
           ))}
           {!qrLinks.length ? <div className="onb-qr-empty">Crea prima i tavoli per generare i QR.</div> : null}

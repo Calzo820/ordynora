@@ -110,7 +110,7 @@ function Dashboard() {
   const [demoSeeding, setDemoSeeding] = useState(false);
   const [demoSeedMessage, setDemoSeedMessage] = useState("");
   const [dismissedSupportAccess, setDismissedSupportAccess] = useState(
-    () => localStorage.getItem("ordynora_dismissed_support_access") || ""
+    () => localStorage.getItem("easymenu_dismissed_support_access") || ""
   );
 
   const restaurantName = getRestaurantName();
@@ -147,7 +147,7 @@ function Dashboard() {
 
       const loginData = await publicApiPost("/auth/login", {
         email: "owner@demo.test",
-        password: "Ordynora2026!",
+        password: "EasyMenu2026!",
       });
 
       if (loginData?.token) setAuthToken(loginData.token);
@@ -281,7 +281,7 @@ function Dashboard() {
           <SupportAccessNotice
             access={supportAccess}
             onDismiss={() => {
-              localStorage.setItem("ordynora_dismissed_support_access", supportAccess.id);
+              localStorage.setItem("easymenu_dismissed_support_access", supportAccess.id);
               setDismissedSupportAccess(supportAccess.id);
             }}
           />

@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import logoOrdynora from "../assets/logo-ordynora.png";
+import logoOrdynora from "../assets/logo-easymenu.png";
 import { apiPost, clearAuthSession, getAuthToken, setAuthToken } from "../lib/api";
 import "../styles/staff-access.css";
 
-const RESTAURANT_CODE_KEY = "ordynora_staff_restaurant_code";
+const RESTAURANT_CODE_KEY = "easymenu_staff_restaurant_code";
 
 function rolePath(role) {
   if (role === "kitchen") return "/cucina";

@@ -1605,6 +1605,78 @@ body .em-sidebar__avatar {
   }
 }
 
+/* Cross-page responsive safety net: prevents wide operational content from
+   breaking phone/tablet layouts while preserving deliberate scroll areas. */
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+table {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+}
+
+.management-shell,
+.app-shell,
+.page-container,
+.main-container,
+.customer-menu-shell,
+.auth-shell,
+.demo-shell {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 721px) and (max-width: 1180px) {
+  .management-shell,
+  .app-shell,
+  .page-container,
+  .main-container {
+    padding-inline: clamp(16px, 3vw, 32px) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .management-toolbar,
+  .management-actions,
+  .page-actions,
+  .toolbar,
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+
+  .management-toolbar > *,
+  .management-actions > *,
+  .page-actions > * {
+    min-width: 0;
+  }
+
+  .table-responsive,
+  .management-table-wrap,
+  .report-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  dialog,
+  [role="dialog"] {
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+  }
+}
+
 @media print {
   * {
     box-shadow: none !important;

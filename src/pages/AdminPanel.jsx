@@ -40,7 +40,7 @@ const emptyUser = {
 };
 
 const CATEGORY_PRESETS = ["Antipasti", "Primi", "Secondi", "Contorni", "Dolci", "Bevande"];
-const SUPPORT_EMAIL = "support@ordynora.com";
+const SUPPORT_EMAIL = "easy.menu.service@gmail.com";
 const SUPPORT_PHONE = "+39 324 046 7723";
 const supportWhatsAppUrl = `https://wa.me/393240467723?text=${encodeURIComponent("Ciao, ho bisogno di supporto per Ordynora.")}`;
 

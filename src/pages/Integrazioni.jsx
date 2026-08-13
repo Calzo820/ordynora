@@ -96,7 +96,7 @@ export default function Integrazioni() {
   const [selected, setSelected] = useState(integrations[0].name);
   const [requested, setRequested] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("ordynora_requested_integrations") || "[]");
+      return JSON.parse(localStorage.getItem("easymenu_requested_integrations") || "[]");
     } catch {
       return [];
     }
@@ -114,7 +114,7 @@ export default function Integrazioni() {
       ? requested.filter((item) => item !== name)
       : [...requested, name];
     setRequested(next);
-    localStorage.setItem("ordynora_requested_integrations", JSON.stringify(next));
+    localStorage.setItem("easymenu_requested_integrations", JSON.stringify(next));
   }
 
   return (

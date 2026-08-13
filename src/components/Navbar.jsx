@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import logoOrdynora from "../assets/logo-ordynora.png";
+import logoOrdynora from "../assets/logo-easymenu.png";
+import { usePwaInstall } from "../context/PwaInstallContext.jsx";
 
 function getRistoranteAttivo() {
   return localStorage.getItem("ristorante_attivo") || "";
@@ -72,6 +73,7 @@ export default function Navbar() {
   const isOperational = ["/cucina", "/bar", "/cassa", "/tavoli"].some((path) => location.pathname.startsWith(path));
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { installed, requestInstall } = usePwaInstall();
 
   const restaurantName = isSuperAdmin
     ? "Piattaforma SaaS"
@@ -82,7 +84,7 @@ export default function Navbar() {
   const isAdmin = !isSuperAdmin && (role === "admin" || role === "owner");
   const isWaiter = role === "waiter";
   const canKitchen = isAdmin || role === "kitchen";
-  const canBar = role === "bar";
+  const canBar = isAdmin || role === "bar";
   const canCashier = isAdmin || role === "cashier";
   const canTables = isAdmin || role === "cashier" || isWaiter;
 
@@ -143,6 +145,12 @@ export default function Navbar() {
 
   function handleNavigate() {
     if (isOperational || window.innerWidth <= 1180) setOpen(false);
+  }
+
+  async function handleInstall() {
+    const result = await requestInstall();
+    if (result?.message) window.alert(result.message);
+    setOpen(false);
   }
 
   return (
@@ -259,6 +267,7 @@ export default function Navbar() {
           font-size: 13px;
           font-weight: 850;
         }
+        .em-sidebar__install { width: 100%; border: 0; background: transparent; font: inherit; cursor: pointer; text-align: left; }
         .em-sidebar__sublink:hover { background: rgba(255,255,255,0.07); color: #fff; }
         .em-sidebar__sublink.is-active { background: rgba(255,255,255,0.95); color: #07111f; }
         .em-sidebar__footer { margin-top: auto; padding: 14px; display: grid; gap: 10px; }
@@ -278,14 +287,14 @@ export default function Navbar() {
         type="button"
         aria-label={open ? "Chiudi navigazione" : "Apri navigazione"}
         aria-expanded={open}
-        aria-controls="ordynora-sidebar"
+        aria-controls="easymenu-sidebar"
         onClick={() => setOpen((prev) => !prev)}
       >
         <span className={open ? "em-menu-glyph is-close" : "em-menu-glyph"} aria-hidden="true" />
       </button>
       <div className={open ? "em-sidebar-backdrop is-open" : "em-sidebar-backdrop"} onClick={() => setOpen(false)} />
 
-      <aside id="ordynora-sidebar" className={open ? "em-sidebar is-open" : "em-sidebar"} aria-label="Navigazione Ordynora">
+      <aside id="easymenu-sidebar" className={open ? "em-sidebar is-open" : "em-sidebar"} aria-label="Navigazione Ordynora">
         <div className="em-sidebar__brand">
           <div className="em-sidebar__logo"><img src={logoOrdynora} alt="Ordynora" /></div>
           <div style={{ minWidth: 0 }}>
@@ -300,6 +309,12 @@ export default function Navbar() {
               <span>{link.label}</span>
             </Link>
           ))}
+
+          {!installed ? (
+            <button type="button" onClick={handleInstall} className="em-sidebar__link em-sidebar__install">
+              <span>Installa l'app</span>
+            </button>
+          ) : null}
 
           {settingsLinks.length ? (
             <div className="em-sidebar__settings">

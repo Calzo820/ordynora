@@ -181,9 +181,9 @@ export default function Login() {
       setAvviso("");
       setSuccesso("Preparo la demo completa: logo, tavoli, menu, ordini e storico...");
       await publicApiPost("/demo/ensure", {}, {}, { timeoutMs: 120000 });
-      setForm({ email: "owner@demo.test", password: "Ordynora2026!" });
+      setForm({ email: "owner@demo.test", password: "EasyMenu2026!" });
       setSuccesso("Demo completa pronta. Accesso in corso...");
-      await loginWithCredentials("owner@demo.test", "Ordynora2026!");
+      await loginWithCredentials("owner@demo.test", "EasyMenu2026!");
     } catch (error) {
       showError(error, "Non sono riuscito a preparare la demo completa.");
     } finally {

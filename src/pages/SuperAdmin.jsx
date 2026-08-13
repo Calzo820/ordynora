@@ -135,7 +135,7 @@ export default function SuperAdmin() {
     slug: "",
     ownerName: "Owner",
     ownerEmail: "",
-    ownerPassword: "Ordynora2026!",
+    ownerPassword: "EasyMenu2026!",
     plan: "starter",
     tablesCount: 10,
   });
@@ -294,7 +294,7 @@ export default function SuperAdmin() {
         slug: "",
         ownerName: "Owner",
         ownerEmail: "",
-        ownerPassword: "Ordynora2026!",
+        ownerPassword: "EasyMenu2026!",
         plan: "starter",
         tablesCount: 10,
       });

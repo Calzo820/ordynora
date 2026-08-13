@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import prisma from "../lib/prisma.js";
 
 function getBearerToken(req) {
   const authHeader = req.headers.authorization;
@@ -6,7 +7,7 @@ function getBearerToken(req) {
   return authHeader.slice(7).trim();
 }
 
-export const requireAuth = (req, res, next) => {
+export const requireAuth = async (req, res, next) => {
   try {
     const token = getBearerToken(req);
 
@@ -16,7 +17,7 @@ export const requireAuth = (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = {
+    const tokenUser = {
       userId: decoded.userId,
       email: decoded.email,
       restaurantId: decoded.restaurantId || null,
@@ -26,7 +27,28 @@ export const requireAuth = (req, res, next) => {
       platformUserId: decoded.platformUserId || null,
     };
 
-    next();
+    if (tokenUser.isSuperAdmin) {
+      req.user = tokenUser;
+      return next();
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: tokenUser.userId },
+      select: { id: true, email: true, restaurantId: true, role: true, isActive: true },
+    });
+
+    if (!currentUser?.isActive || currentUser.restaurantId !== tokenUser.restaurantId) {
+      return res.status(401).json({ message: "Sessione revocata o account non attivo" });
+    }
+
+    req.user = {
+      ...tokenUser,
+      email: currentUser.email,
+      restaurantId: currentUser.restaurantId,
+      role: currentUser.role,
+    };
+
+    return next();
   } catch {
     return res.status(401).json({ message: "Token non valido o scaduto" });
   }

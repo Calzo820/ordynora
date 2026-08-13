@@ -245,8 +245,8 @@ export default function Cliente() {
       applySyncedOrder(queueId, result);
     };
 
-    window.addEventListener("ordynora:offline-order-synced", onSynced);
-    return () => window.removeEventListener("ordynora:offline-order-synced", onSynced);
+    window.addEventListener("easymenu:offline-order-synced", onSynced);
+    return () => window.removeEventListener("easymenu:offline-order-synced", onSynced);
   }, [order?.id, slug, tableToken]);
 
   useEffect(() => {

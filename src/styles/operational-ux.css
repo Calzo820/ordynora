@@ -1,4 +1,4 @@
-:root.ordynora-operational-dark body {
+:root.easy-operational-dark body {
   background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.2), transparent 30%), linear-gradient(135deg, #020617 0%, #0f172a 58%, #111827 100%);
 }
 
@@ -12,7 +12,7 @@
 }
 
 .operational-screen.operational-fullscreen .app-shell,
-.ordynora-fullscreen-fallback .operational-screen .app-shell {
+.easy-fullscreen-fallback .operational-screen .app-shell {
   max-width: none;
   padding: 10px;
 }

@@ -9,7 +9,7 @@ import {
 } from "../lib/api";
 
 const WHATSAPP_NUMBER = "3240467723";
-const CHAIN_MESSAGE = "Ciao, ho più ristoranti e vorrei informazioni su EasyMenu per catene o multi-sede.";
+const CHAIN_MESSAGE = "Ciao, ho più ristoranti e vorrei informazioni su Ordynora per catene o multi-sede.";
 const chainContactUrl = `https://wa.me/39${WHATSAPP_NUMBER}?text=${encodeURIComponent(CHAIN_MESSAGE)}`;
 
 function formatDate(value) {
@@ -58,7 +58,7 @@ const planDetails = {
 };
 
 const planOrder = ["starter", "growth", "semiannual", "enterprise"];
-const includedPills = ["EasyMenu completo", "Rinnovo automatico", "Disdici quando vuoi"];
+const includedPills = ["Ordynora completo", "Rinnovo automatico", "Disdici quando vuoi"];
 
 function normalizePlan(plan) {
   return planOrder.includes(plan) ? plan : "starter";
@@ -134,7 +134,7 @@ function ChainCard() {
         <div style={chainBadgeStyle}>Multi-sede</div>
         <h2 style={{ margin: "12px 0 8px", fontSize: 28, letterSpacing: "-0.05em", color: "#0f172a" }}>Hai una catena?</h2>
         <p style={{ margin: 0, color: "#475569", fontWeight: 800, lineHeight: 1.55, maxWidth: 620 }}>
-          Stesse funzioni EasyMenu, con condizioni dedicate per più ristoranti, setup multi-locale e supporto personalizzato.
+          Stesse funzioni Ordynora, con condizioni dedicate per più ristoranti, setup multi-locale e supporto personalizzato.
         </p>
       </div>
       <a href={chainContactUrl} target="_blank" rel="noreferrer" style={chainButtonStyle}>
@@ -220,7 +220,7 @@ export default function Billing() {
             <div style={heroCopyStyle}>
               <div className="topbar-chip" style={{ marginBottom: 12, color: "#0f172a", background: "rgba(255,255,255,0.88)" }}>
                 <span className="status-dot" style={{ background: "#22c55e" }} />
-                Abbonamento EasyMenu
+                Abbonamento Ordynora
               </div>
               <h1 style={{ margin: 0, fontSize: "clamp(32px, 4vw, 54px)", letterSpacing: "-0.07em", color: "white", lineHeight: 0.95 }}>
                 Un solo prodotto. Scegli solo la durata.
@@ -270,7 +270,7 @@ export default function Billing() {
               <h2 style={{ margin: "7px 0 8px", color: "#0f172a", fontSize: 26 }}>Funzione disponibile presto</h2>
               <p style={{ margin: 0, color: "#52647a", lineHeight: 1.55, fontWeight: 750 }}>
                 Il collegamento Stripe per far pagare i clienti direttamente dal telefono non è ancora disponibile.
-                EasyMenu oggi gestisce QR, ordini, cucina, bar, cassa e richiesta conto; gli incassi online dal tavolo saranno attivati in una prossima versione.
+                Ordynora oggi gestisce QR, ordini, cucina, bar, cassa e richiesta conto; gli incassi online dal tavolo saranno attivati in una prossima versione.
               </p>
             </div>
             <div className="billing-connect-status" style={connectStatusStyle}>

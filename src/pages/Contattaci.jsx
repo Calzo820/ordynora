@@ -2,7 +2,7 @@ import Navbar from "../components/Navbar";
 import { appShellStyle, glowPageStyle } from "../styles/pageStyles";
 import "../styles/contact.css";
 
-const SUPPORT_EMAIL = "support@ordynora.com";
+const SUPPORT_EMAIL = "easy.menu.service@gmail.com";
 const SUPPORT_PHONE_DISPLAY = "+39 324 046 7723";
 const SUPPORT_PHONE_LINK = "+393240467723";
 const WHATSAPP_URL = `https://wa.me/393240467723?text=${encodeURIComponent("Ciao, ho bisogno di supporto per Ordynora.")}`;
