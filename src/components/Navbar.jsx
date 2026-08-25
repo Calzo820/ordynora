@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import logoOrdynora from "../assets/logo-easymenu.png";
-import { usePwaInstall } from "../context/PwaInstallContext.jsx";
+import usePwaInstall from "../hooks/usePwaInstall";
+import { getRoleLabel, isAdminRole, isSuperAdminUser } from "../lib/roles";
 
 function getRistoranteAttivo() {
   return localStorage.getItem("ristorante_attivo") || "";
@@ -60,7 +61,7 @@ function initials(user) {
 
 function getAdminTabFromSearch(search) {
   const tab = new URLSearchParams(search || "").get("tab") || "menu";
-  return ["menu", "tables", "staff"].includes(tab) ? tab : "menu";
+  return ["menu", "tables", "staff", "settings"].includes(tab) ? tab : "menu";
 }
 
 export default function Navbar() {
@@ -68,12 +69,13 @@ export default function Navbar() {
   const user = getUser();
   const role = (user?.role || "").toLowerCase();
   const logged = isLoggedIn();
-  const isSuperAdmin = Boolean(user?.isSuperAdmin) || role === "superadmin" || location.pathname.startsWith("/super-admin");
+  const isSuperAdmin = isSuperAdminUser(user) || location.pathname.startsWith("/super-admin");
   const impersonating = hasPlatformSession() && !isSuperAdmin;
   const isOperational = ["/cucina", "/bar", "/cassa", "/tavoli"].some((path) => location.pathname.startsWith(path));
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { installed, requestInstall } = usePwaInstall();
+  const [installMessage, setInstallMessage] = useState("");
+  const pwa = usePwaInstall();
 
   const restaurantName = isSuperAdmin
     ? "Piattaforma SaaS"
@@ -81,7 +83,7 @@ export default function Navbar() {
       ? `${getRistoranteAttivo() || "Ristorante"} - superadmin`
       : getRistoranteAttivo() || "Nessun ristorante";
 
-  const isAdmin = !isSuperAdmin && (role === "admin" || role === "owner");
+  const isAdmin = !isSuperAdmin && isAdminRole(role);
   const isWaiter = role === "waiter";
   const canKitchen = isAdmin || role === "kitchen";
   const canBar = isAdmin || role === "bar";
@@ -98,31 +100,32 @@ export default function Navbar() {
     };
   }, [logged, open]);
 
-  const links = useMemo(() => {
-    if (!logged) return [];
-    if (isSuperAdmin) return [{ to: "/super-admin", label: "SuperAdmin", match: ["/super-admin"] }];
+  const links = !logged
+    ? []
+    : isSuperAdmin
+      ? [{ to: "/super-admin", label: "SuperAdmin", match: ["/super-admin"] }]
+      : [
+          isAdmin && { to: "/dashboard", label: "Dashboard", match: ["/dashboard"] },
+          canKitchen && !impersonating && { to: "/cucina", label: isAdmin ? "Servizio" : "Cucina", match: ["/cucina"] },
+          canBar && { to: "/bar", label: "Bar", match: ["/bar"] },
+          canCashier && !impersonating && { to: "/cassa", label: "Cassa", match: ["/cassa"] },
+          canTables && { to: "/tavoli", label: isWaiter ? "Sala" : "Tavoli", match: ["/tavoli"] },
+          isAdmin && { to: "/admin?tab=menu", label: "Menu", match: ["/admin"], adminTab: "menu" },
+          isAdmin && !impersonating && { to: "/statistiche", label: "Statistiche", match: ["/statistiche"] },
+          isAdmin && !impersonating && { to: "/storico", label: "Storico", match: ["/storico"] },
+        ].filter(Boolean);
 
-    return [
-      isAdmin && { to: "/dashboard", label: "Dashboard", match: ["/dashboard"] },
-      canKitchen && !impersonating && { to: "/cucina", label: isAdmin ? "Servizio" : "Cucina", match: ["/cucina"] },
-      canBar && { to: "/bar", label: "Bar", match: ["/bar"] },
-      canCashier && !impersonating && { to: "/cassa", label: "Cassa", match: ["/cassa"] },
-      canTables && { to: "/tavoli", label: isWaiter ? "Sala" : "Tavoli", match: ["/tavoli"] },
-      isAdmin && { to: "/admin?tab=menu", label: "Menu", match: ["/admin"], adminTab: "menu" },
-      isAdmin && !impersonating && { to: "/statistiche", label: "Statistiche", match: ["/statistiche"] },
-      isAdmin && !impersonating && { to: "/storico", label: "Storico", match: ["/storico"] },
-    ].filter(Boolean);
-  }, [logged, isSuperAdmin, isAdmin, canKitchen, canBar, canCashier, canTables, impersonating, isWaiter]);
-
-  const settingsLinks = useMemo(() => {
-    if (!logged || !isAdmin || isSuperAdmin) return [];
-    return [
-      { to: "/onboarding", label: "Setup guidato", match: ["/onboarding", "/setup"] },
-      { to: "/billing", label: "Abbonamento", match: ["/billing"] },
-      { to: "/privacy", label: "Privacy", match: ["/privacy", "/termini", "/cookie"] },
-      { to: "/contattaci", label: "Contattaci", match: ["/contattaci"] },
-    ];
-  }, [logged, isAdmin, isSuperAdmin]);
+  const settingsLinks = !logged || !isAdmin || isSuperAdmin
+    ? []
+    : [
+        { to: "/onboarding", label: "Setup guidato", match: ["/onboarding", "/setup"] },
+        { to: "/admin?tab=settings", label: "Profilo e app", match: ["/admin"], adminTab: "settings" },
+        { to: "/admin?tab=staff", label: "Staff e ruoli", match: ["/admin"], adminTab: "staff" },
+        { to: "/qr", label: "QR tavoli", match: ["/qr"] },
+        { to: "/billing", label: "Abbonamento", match: ["/billing"] },
+        { to: "/privacy", label: "Privacy", match: ["/privacy", "/termini", "/cookie"] },
+        { to: "/contattaci", label: "Contattaci", match: ["/contattaci"] },
+      ];
 
   const settingsActive = settingsLinks.some((link) => isActive(link));
 
@@ -147,10 +150,14 @@ export default function Navbar() {
     if (isOperational || window.innerWidth <= 1180) setOpen(false);
   }
 
-  async function handleInstall() {
-    const result = await requestInstall();
-    if (result?.message) window.alert(result.message);
-    setOpen(false);
+  async function handleInstallClick() {
+    const result = await pwa.requestInstall();
+    if (result.status === "installed" || result.status === "accepted") {
+      setInstallMessage("App installata correttamente.");
+      return;
+    }
+    setInstallMessage(pwa.manualCopy);
+    window.dispatchEvent(new CustomEvent("ordynora:show-install-banner"));
   }
 
   return (
@@ -267,16 +274,17 @@ export default function Navbar() {
           font-size: 13px;
           font-weight: 850;
         }
-        .em-sidebar__install { width: 100%; border: 0; background: transparent; font: inherit; cursor: pointer; text-align: left; }
         .em-sidebar__sublink:hover { background: rgba(255,255,255,0.07); color: #fff; }
         .em-sidebar__sublink.is-active { background: rgba(255,255,255,0.95); color: #07111f; }
         .em-sidebar__footer { margin-top: auto; padding: 14px; display: grid; gap: 10px; }
         .em-sidebar__user { display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: 18px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.08); }
         .em-sidebar__avatar { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: #1d4ed8; color: white; font-size: 13px; font-weight: 950; flex: 0 0 auto; }
         .em-sidebar__email { max-width: 170px; color: #cbd5e1; font-size: 11px; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .em-sidebar__actions { display: grid; grid-template-columns: ${impersonating ? "1fr 1fr" : "1fr"}; gap: 8px; }
+        .em-sidebar__actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
         .em-sidebar__btn { border: 1px solid rgba(255,255,255,0.10); border-radius: 13px; padding: 10px 11px; background: rgba(255,255,255,0.07); color: white; font-weight: 900; cursor: pointer; }
         .em-sidebar__btn--green { background: rgba(34,197,94,0.18); border-color: rgba(34,197,94,0.25); }
+        .em-sidebar__btn--install { background: rgba(59,130,246,0.18); border-color: rgba(96,165,250,0.24); }
+        .em-sidebar__install-help { border-radius: 14px; padding: 10px 12px; background: rgba(59,130,246,0.10); border: 1px solid rgba(96,165,250,0.18); color: #bfdbfe; font-size: 12px; line-height: 1.35; font-weight: 750; }
         @media print {
           .em-menu-toggle, .em-sidebar, .em-sidebar-backdrop { display: none !important; }
         }
@@ -309,12 +317,6 @@ export default function Navbar() {
               <span>{link.label}</span>
             </Link>
           ))}
-
-          {!installed ? (
-            <button type="button" onClick={handleInstall} className="em-sidebar__link em-sidebar__install">
-              <span>Installa l'app</span>
-            </button>
-          ) : null}
 
           {settingsLinks.length ? (
             <div className="em-sidebar__settings">
@@ -352,10 +354,12 @@ export default function Navbar() {
             <div className="em-sidebar__avatar">{initials(user)}</div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 950 }}>{isSuperAdmin ? "SuperAdmin" : user?.name || "Staff"}</div>
-              <div className="em-sidebar__email">{user?.email || ""}</div>
+              <div className="em-sidebar__email">{getRoleLabel(role)} · {user?.email || ""}</div>
             </div>
           </div>
           <div className="em-sidebar__actions">
+            {!pwa.installed ? <button className="em-sidebar__btn em-sidebar__btn--install" type="button" onClick={handleInstallClick}>{pwa.canPrompt ? "Installa app" : "Guida installazione"}</button> : null}
+            {installMessage ? <div className="em-sidebar__install-help">{installMessage}</div> : null}
             {impersonating ? <button className="em-sidebar__btn em-sidebar__btn--green" onClick={restorePlatformSession}>SuperAdmin</button> : null}
             <button className="em-sidebar__btn" onClick={logout}>Esci</button>
           </div>

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../lib/api";
 import { imageFileToDataUrl } from "../lib/imageFiles";
+import usePwaInstall from "../hooks/usePwaInstall";
 import { appShellStyle, glowPageStyle } from "../styles/pageStyles";
 import "../styles/management-os.css";
 
@@ -77,7 +78,7 @@ function bySortThenName(a, b) {
 
 function getInitialTab(search = window.location.search) {
   const tab = new URLSearchParams(search || "").get("tab") || "menu";
-  return ["menu", "staff"].includes(tab) ? tab : "menu";
+  return ["menu", "tables", "staff", "settings"].includes(tab) ? tab : "menu";
 }
 
 function roleLabel(role) {
@@ -139,6 +140,7 @@ function SettingsCard({ icon, title, subtitle, action, tone = "default", onClick
 export default function AdminPanel({ embedded = false } = {}) {
   const location = useLocation();
   const navigate = useNavigate();
+  const pwa = usePwaInstall();
   const [restaurant, setRestaurant] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [tables, setTables] = useState([]);
@@ -152,6 +154,7 @@ export default function AdminPanel({ embedded = false } = {}) {
   const [uploadingRestaurantLogo, setUploadingRestaurantLogo] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [installHelp, setInstallHelp] = useState("");
   const [activeTab, setActiveTab] = useState(() => getInitialTab(location.search));
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -249,12 +252,20 @@ export default function AdminPanel({ embedded = false } = {}) {
   const customerMenuLink = restaurant?.slug && firstCustomerTable?.qrToken
     ? `/menu/${restaurant.slug}/${firstCustomerTable.qrToken}`
     : "";
-  const pageTitle = activeTab === "settings" ? "Impostazioni ristorante" : activeTab === "staff" ? "Staff opzionale" : "Menu del ristorante";
-  const pageSubtitle = activeTab === "settings"
-    ? "Profilo, abbonamento, privacy e supporto in un posto solo."
+  const pageTitle = activeTab === "settings"
+    ? "Impostazioni ristorante"
     : activeTab === "staff"
-      ? "Puoi partire con un solo account owner e aggiungere ruoli separati quando servono davvero."
-      : "Prodotti, prezzi, disponibilità e anteprima cliente senza funzioni duplicate.";
+      ? "Staff e ruoli"
+      : activeTab === "tables"
+        ? "Tavoli e QR"
+        : "Menu del ristorante";
+  const pageSubtitle = activeTab === "settings"
+    ? "Profilo, setup, privacy, abbonamento, installazione app e assistenza in un unico pannello."
+    : activeTab === "staff"
+      ? "Ogni ruolo vede solo le schermate utili: cucina, bar, sala, cassa o amministrazione."
+      : activeTab === "tables"
+        ? "Configura tavoli, codici e QR senza perdere leggibilità anche su molti coperti."
+        : "Prodotti, prezzi, disponibilità e anteprima cliente senza funzioni duplicate.";
 
   async function handleRestaurantSubmit(event) {
     event.preventDefault();
@@ -771,7 +782,7 @@ export default function AdminPanel({ embedded = false } = {}) {
   }
 
   function renderStaff() {
-    const staffAccessUrl = `${window.location.origin}/staff?locale=${encodeURIComponent(restaurant?.slug || "")}`;
+    const staffAccessUrl = `${window.location.origin}/staff?restaurant=${encodeURIComponent(restaurant?.slug || "")}`;
 
     async function copyStaffAccessUrl() {
       try {
@@ -808,7 +819,7 @@ export default function AdminPanel({ embedded = false } = {}) {
           {userForm.accessMode === "pin" ? (
             <>
               <Field label="PIN personale"><TextInput placeholder="4-6 numeri" type="password" inputMode="numeric" minLength="4" maxLength="6" value={userForm.pin} onChange={(e) => setUserForm((prev) => ({ ...prev, pin: e.target.value.replace(/\D/g, "").slice(0, 6) }))} /></Field>
-              <div className="staff-code-note"><span>Codice ristorante</span><strong>{restaurant?.slug || "-"}</strong><small>Lo staff inserisce questo codice e il proprio PIN nella pagina di accesso.</small></div>
+              <div className="staff-code-note"><span>Codice ristorante</span><strong>{restaurant?.slug || "-"}</strong><small>Lo staff inserisce questo codice e il proprio PIN nella pagina di accesso. Ogni ruolo apre solo le schermate utili al proprio lavoro.</small></div>
             </>
           ) : (
             <>
@@ -849,6 +860,20 @@ export default function AdminPanel({ embedded = false } = {}) {
         </div>
       </div>
     );
+  }
+
+  async function handleInstallApp() {
+    if (pwa.installed) {
+      setInstallHelp("Ordynora risulta già installata su questo dispositivo.");
+      return;
+    }
+    const result = await pwa.requestInstall();
+    if (result.status === "accepted" || result.status === "installed") {
+      setInstallHelp("Ordynora installata correttamente su questo dispositivo.");
+      return;
+    }
+    setInstallHelp(`${pwa.manualCopy} Puoi tornare qui in qualsiasi momento: chiudere la notifica non blocca più l'installazione.`);
+    window.dispatchEvent(new CustomEvent("ordynora:show-install-banner"));
   }
 
   function renderSettings() {
@@ -892,13 +917,14 @@ export default function AdminPanel({ embedded = false } = {}) {
           <div className="management-card settings-group-card">
             <SectionHead
               title="Configurazione essenziale"
-              subtitle="Poche sezioni chiare: profilo, setup e integrazioni. Menu e tavoli restano nelle loro pagine dedicate."
+              subtitle="Poche sezioni chiare: profilo, setup, app staff e amministrazione. Menu e tavoli restano nelle loro pagine dedicate."
             />
             <div className="settings-card-grid">
               <SettingsCard icon="SET" title="Setup guidato" subtitle="Completa Ordynora passo passo." action="Apri" onClick={() => window.location.href = "/onboarding"} />
               <SettingsCard icon="BRD" title="Brand e colori" subtitle="Logo, colore primario e valuta del menu." action="Modifica" onClick={() => document.querySelector(".settings-brand-panel")?.scrollIntoView({ behavior: "smooth" })} />
-              <SettingsCard icon="INT" title="Integrazioni" subtitle="POS, stampanti, delivery e prenotazioni." action="Apri" onClick={() => window.location.href = "/integrazioni"} />
+              <SettingsCard icon="APP" title="Installa app" subtitle="Installa Ordynora su telefono, tablet o PC anche se hai chiuso la notifica iniziale." action={pwa.installed ? "Installata" : pwa.canPrompt ? "Installa" : "Guida"} tone="app" onClick={handleInstallApp} />
             </div>
+            {installHelp ? <div className="settings-install-help">{installHelp}</div> : null}
           </div>
 
           <div className="management-card settings-staff-note">

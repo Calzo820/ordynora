@@ -1,0 +1,588 @@
+/* Ordynora responsive hardening: PC, tablet, mobile */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-shell,
+.management-os,
+.demo-page,
+.legal-page,
+.contact-shell,
+.tables-calendar-page,
+.cm-page,
+.kds-board,
+.hc-cashdesk {
+  width: min(100%, 1440px);
+  margin-inline: auto;
+}
+
+.management-card,
+.landing-card,
+.demo-live-panel,
+.demo-side-panel,
+.cm-cart-summary,
+.hc-list-panel,
+.hc-detail-panel,
+.kds-ticket,
+.tables-agenda-shell,
+.tables-day-summary {
+  min-width: 0;
+}
+
+.management-input,
+.management-select,
+.management-textarea,
+.auth-input,
+.cm-item-note textarea,
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+@media (max-width: 1180px) {
+  .app-shell,
+  .management-os,
+  .tables-calendar-page,
+  .kds-board,
+  .hc-cashdesk {
+    padding-inline: clamp(12px, 3vw, 22px) !important;
+  }
+
+  .management-grid-2,
+  .settings-os-grid,
+  .landing-contrast,
+  .demo-split,
+  .hc-layout,
+  .tables-calendar-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .settings-os-stack,
+  .hc-detail-panel {
+    position: static !important;
+    max-height: none !important;
+  }
+
+  .kds-columns {
+    grid-template-columns: repeat(2, minmax(280px, 1fr)) !important;
+  }
+
+  .hc-kpis,
+  .management-stats,
+  .dashboard-kpi-grid,
+  .landing-grid-4,
+  .landing-pricing-grid,
+  .settings-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .tables-compact-grid {
+    grid-template-columns: repeat(auto-fit, minmax(94px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 820px) {
+  .em-menu-toggle {
+    top: max(10px, env(safe-area-inset-top)) !important;
+    left: max(10px, env(safe-area-inset-left)) !important;
+  }
+
+  .app-shell,
+  .management-os,
+  .tables-calendar-page,
+  .kds-board,
+  .hc-cashdesk,
+  .demo-page,
+  .legal-page,
+  .contact-shell {
+    padding: 12px !important;
+    padding-top: 72px !important;
+  }
+
+  .landing-hero,
+  .demo-hero,
+  .management-hero-main,
+  .hc-hero,
+  .legal-hero,
+  .contact-hero,
+  .pricingHeroStyle {
+    border-radius: 24px !important;
+  }
+
+  .landing-nav,
+  .demo-topbar,
+  .legal-nav,
+  .tables-calendar-toolbar,
+  .management-section-head,
+  .hc-hero,
+  .hc-searchbar,
+  .kds-topbar,
+  .tables-day-summary__head,
+  .tables-day-tools,
+  .tables-reservation-filters {
+    align-items: stretch !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .landing-nav-actions,
+  .demo-actions,
+  .legal-nav,
+  .hc-actions,
+  .kds-topbar__tools,
+  .management-inline-tools,
+  .tables-calendar-legend,
+  .tables-day-metrics,
+  .tables-reservation-filters,
+  .hc-tabs {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .landing-nav-actions a,
+  .landing-primary,
+  .landing-secondary,
+  .demo-actions a,
+  .demo-primary,
+  .management-btn,
+  .hc-actions button,
+  .hc-tabs button,
+  .kds-topbar__tools button,
+  .tables-day-tools button,
+  .tables-reservation-filters button {
+    min-height: 44px !important;
+  }
+
+  .landing-grid-4,
+  .landing-pricing-grid,
+  .settings-card-grid,
+  .settings-card-grid.two,
+  .hc-kpis,
+  .management-stats,
+  .demo-menu-grid,
+  .demo-orders-grid,
+  .demo-table-grid,
+  .contact-grid,
+  .legal-sections {
+    grid-template-columns: 1fr !important;
+  }
+
+  .kds-columns {
+    grid-template-columns: 1fr !important;
+  }
+
+  .kds-column__list {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .hc-virtual-list,
+  .hc-hot-grid,
+  .management-list {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .hc-table-row,
+  .management-list-row,
+  .demo-cash-row,
+  .tables-inline-message {
+    align-items: stretch !important;
+    grid-template-columns: 1fr !important;
+    flex-direction: column !important;
+  }
+
+  .management-row,
+  .hc-payment-grid,
+  .cm-product-top,
+  .cm-status-steps,
+  .cm-cartbar {
+    flex-wrap: wrap !important;
+  }
+
+  .cm-header,
+  .cm-confirmation {
+    border-radius: 0 0 24px 24px !important;
+  }
+
+  .cm-cartbar {
+    inset-inline: 10px !important;
+    bottom: max(10px, env(safe-area-inset-bottom)) !important;
+    width: auto !important;
+  }
+
+  .em-install-prompt {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(10px, env(safe-area-inset-bottom)) !important;
+    max-width: none !important;
+  }
+}
+
+@media (max-width: 560px) {
+  h1,
+  .management-hero-title,
+  .landing-hero h1,
+  .demo-hero h1 {
+    font-size: clamp(30px, 10vw, 42px) !important;
+    line-height: .98 !important;
+  }
+
+  h2,
+  .management-title {
+    font-size: clamp(22px, 7vw, 30px) !important;
+  }
+
+  .landing-hero,
+  .landing-section,
+  .landing-final,
+  .landing-contrast,
+  .landing-beta-box,
+  .demo-hero,
+  .demo-live-panel,
+  .demo-side-panel,
+  .management-card,
+  .hc-hero,
+  .hc-list-panel,
+  .hc-detail-panel,
+  .kds-ticket,
+  .tables-agenda-shell,
+  .tables-day-summary {
+    border-radius: 20px !important;
+    padding: 18px !important;
+  }
+
+  .landing-nav-actions a,
+  .landing-primary,
+  .landing-secondary,
+  .demo-actions a,
+  .demo-hero-actions button,
+  .demo-beta-strip a,
+  .management-btn,
+  .settings-card,
+  .hc-actions button,
+  .kds-ticket__actions button,
+  .cm-order-button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .demo-hero-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .kds-ticket__actions,
+  .hc-actions,
+  .management-row,
+  .management-upload-row,
+  .settings-support-grid,
+  .cm-qty {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+  }
+
+  .tables-compact-grid,
+  .em-table-grid,
+  .em-table-grid--cash {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .tables-compact-grid button,
+  .em-table-grid button {
+    min-height: 94px !important;
+  }
+
+  .cm-product-image {
+    min-height: 180px !important;
+  }
+
+  .em-sidebar {
+    width: min(320px, 92vw) !important;
+  }
+
+  .em-sidebar__brand {
+    padding-left: 68px !important;
+  }
+}
+
+@media (min-width: 821px) and (max-width: 1180px) {
+  .landing-hero,
+  .demo-hero,
+  .management-hero-main,
+  .hc-hero {
+    padding: clamp(28px, 5vw, 44px) !important;
+  }
+
+  .kds-board.is-dense .kds-columns {
+    grid-template-columns: repeat(3, minmax(220px, 1fr)) !important;
+  }
+}
+
+/* Clickable pricing, install helper and sales CTA details */
+.landing-card-link {
+  text-decoration: none;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.landing-card-link:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 22px 44px rgba(8,33,63,.12);
+  border-color: #22c55e;
+}
+
+.landing-card-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin-top: 6px;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #08213f;
+  color: white;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.landing-price-card.featured .landing-card-cta {
+  background: rgba(255,255,255,.14);
+  color: white;
+  border: 1px solid rgba(255,255,255,.16);
+}
+
+.landing-beta-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.settings-card.app {
+  border-color: rgba(37, 99, 235, .22);
+  background: linear-gradient(135deg, rgba(239,246,255,.96), rgba(255,255,255,.96));
+}
+
+.settings-install-help {
+  margin-top: 12px;
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e3a8a;
+  font-weight: 850;
+  line-height: 1.45;
+}
+
+/* Final hardening patch: PWA install, roles and responsive layouts */
+.em-sidebar__btn--install {
+  position: relative;
+  overflow: hidden;
+}
+
+.em-sidebar__btn--install::after {
+  content: "sempre disponibile";
+  margin-left: 8px;
+  opacity: .72;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.billing-status-strip,
+.billing-connect-card,
+.billing-plans-grid,
+.billing-chain-card {
+  min-width: 0;
+}
+
+.billing-connect-status small,
+.billing-connect-status b {
+  display: block;
+}
+
+.billing-connect-actions a,
+.billing-connect-actions button,
+.billing-status-strip button,
+.billing-chain-card a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.management-list-row > div,
+.demo-cash-row > div,
+.hc-table-row > div,
+.kds-ticket,
+.tables-inline-message > div {
+  min-width: 0;
+}
+
+.management-row-title,
+.management-row-meta,
+.em-sidebar__email,
+.hc-table-row strong,
+.demo-cash-row strong {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1180px) {
+  .billing-status-strip,
+  .billing-connect-card,
+  .billing-chain-card {
+    grid-template-columns: 1fr !important;
+    align-items: stretch !important;
+  }
+
+  .billing-status-strip {
+    gap: 12px !important;
+  }
+
+  .billing-connect-actions,
+  .billing-status-strip > div:last-child,
+  .billing-chain-card {
+    justify-content: stretch !important;
+  }
+
+  .billing-connect-actions a,
+  .billing-connect-actions button,
+  .billing-status-strip button,
+  .billing-chain-card a {
+    width: 100%;
+  }
+
+  .management-toolbar,
+  .management-tabs,
+  .dashboard-topbar,
+  .dash-panel-head,
+  .dash-toolbar,
+  .settings-support-grid {
+    flex-wrap: wrap !important;
+  }
+}
+
+@media (max-width: 820px) {
+  .billing-status-strip,
+  .billing-connect-card,
+  .billing-chain-card,
+  .billing-hero {
+    border-radius: 22px !important;
+    padding: 18px !important;
+  }
+
+  .billing-plans-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .em-sidebar__btn--install::after {
+    content: "";
+    display: none;
+  }
+
+  .management-tabs,
+  .dashboard-tabs,
+  .demo-tabs,
+  .hc-tabs,
+  .tables-calendar-tabs {
+    display: flex !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    padding-bottom: 4px !important;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .management-tabs button,
+  .dashboard-tabs button,
+  .demo-tabs button,
+  .hc-tabs button,
+  .tables-calendar-tabs button {
+    flex: 0 0 auto !important;
+    scroll-snap-align: start;
+  }
+
+  .dash-panel,
+  .dashboard-card,
+  .management-card,
+  .settings-card,
+  .staff-access-card,
+  .auth-card {
+    min-width: 0 !important;
+  }
+
+  .management-list-row .management-row,
+  .staff-access-switch,
+  .cm-confirm-actions,
+  .cm-payment-summary,
+  .cm-payment-split > div {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+  }
+
+  .cm-confirm-actions button,
+  .cm-coming-soon-button,
+  .cm-payment-cta {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .billing-status-strip,
+  .billing-connect-card,
+  .billing-chain-card,
+  .billing-hero {
+    padding: 16px !important;
+  }
+
+  .landing-pricing-grid a,
+  .settings-card,
+  .management-btn,
+  .em-sidebar__btn,
+  .auth-card button,
+  .staff-access-card button {
+    min-height: 46px !important;
+  }
+
+  .landing-card-cta,
+  .landing-beta-actions,
+  .landing-beta-actions a {
+    width: 100% !important;
+  }
+
+  .kds-topbar__meta,
+  .hc-kpis,
+  .tables-day-metrics,
+  .dash-mini-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cm-cartbar {
+    padding: 12px !important;
+  }
+}

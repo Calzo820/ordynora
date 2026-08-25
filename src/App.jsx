@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ConnectionStatus from "./components/ConnectionStatus.jsx";
@@ -17,7 +17,6 @@ const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Demo = lazy(() => import("./pages/Demo.jsx"));
 const Errori = lazy(() => import("./pages/Errori.jsx"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
-const Integrazioni = lazy(() => import("./pages/Integrazioni.jsx"));
 const Landing = lazy(() => import("./pages/Landing.jsx"));
 const LegalPage = lazy(() => import("./pages/LegalPage.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
@@ -84,7 +83,7 @@ export default function App() {
           <Route path="/qr" element={<ProtectedRoute roles={["owner", "admin"]}><QRCodeTavoli /></ProtectedRoute>} />
           <Route path="/storico" element={<ProtectedRoute roles={["owner", "admin"]}><Storico /></ProtectedRoute>} />
           <Route path="/statistiche" element={<ProtectedRoute roles={["owner", "admin"]}><Statistiche /></ProtectedRoute>} />
-          <Route path="/integrazioni" element={<ProtectedRoute roles={["owner", "admin"]}><Integrazioni /></ProtectedRoute>} />
+          <Route path="/integrazioni" element={<ProtectedRoute roles={["owner", "admin"]}><Navigate to="/admin?tab=settings" replace /></ProtectedRoute>} />
           <Route path="/errori" element={<ProtectedRoute roles={["owner", "admin"]}><Errori /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>

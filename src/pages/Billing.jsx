@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar.jsx";
 import { appShellStyle, glowPageStyle } from "../styles/pageStyles";
 import {
@@ -129,7 +128,7 @@ function PlanCard({ id, currentPlan, loadingPlan, configured = true, onCheckout 
 
 function ChainCard() {
   return (
-    <article style={chainCardStyle}>
+    <article className="billing-chain-card" style={chainCardStyle}>
       <div>
         <div style={chainBadgeStyle}>Multi-sede</div>
         <h2 style={{ margin: "12px 0 8px", fontSize: 28, letterSpacing: "-0.05em", color: "#0f172a" }}>Hai una catena?</h2>
@@ -197,7 +196,7 @@ export default function Billing() {
       const res = await openBillingPortal();
       if (res?.portalUrl) window.location.href = res.portalUrl;
     } catch (err) {
-      setError(err.message || "Errore apertura portale Stripe");
+      setError(err.message || "Errore apertura portale abbonamento");
     } finally {
       setPortalLoading(false);
     }
@@ -216,7 +215,7 @@ export default function Billing() {
       <Navbar />
       <div style={appShellStyle}>
         <div className="app-shell">
-          <section style={pricingHeroStyle}>
+          <section className="billing-hero" style={pricingHeroStyle}>
             <div style={heroCopyStyle}>
               <div className="topbar-chip" style={{ marginBottom: 12, color: "#0f172a", background: "rgba(255,255,255,0.88)" }}>
                 <span className="status-dot" style={{ background: "#22c55e" }} />
@@ -236,7 +235,7 @@ export default function Billing() {
           {error ? <div style={errorBox}>{error}</div> : null}
           {paymentProblem ? (
             <div style={warnBox}>
-              Pagamento da verificare: lo stato abbonamento è <b>{status}</b>. Aggiorna il metodo di pagamento dal portale o contattaci per assistenza.
+              Pagamento da verificare: lo stato abbonamento e <b>{status}</b>. Aggiorna il metodo di pagamento dal portale o contattaci per assistenza.
             </div>
           ) : null}
           {billingWarning ? (
@@ -245,7 +244,7 @@ export default function Billing() {
             </div>
           ) : null}
 
-          <section style={statusStripStyle}>
+          <section className="billing-status-strip" style={statusStripStyle}>
             {loading ? (
               <div style={{ color: "#64748b", fontWeight: 850 }}>Caricamento stato abbonamento...</div>
             ) : (
@@ -266,31 +265,27 @@ export default function Billing() {
 
           <section className="billing-connect-card" style={connectCardStyle}>
             <div style={connectCopyStyle}>
-              <div style={connectEyebrowStyle}>Pagamenti dal tavolo</div>
-              <h2 style={{ margin: "7px 0 8px", color: "#0f172a", fontSize: 26 }}>Funzione disponibile presto</h2>
+              <div style={connectEyebrowStyle}>Disponibile presto</div>
+              <h2 style={{ margin: "7px 0 8px", color: "#0f172a", fontSize: 26 }}>Pagamenti dal tavolo</h2>
               <p style={{ margin: 0, color: "#52647a", lineHeight: 1.55, fontWeight: 750 }}>
-                Il collegamento Stripe per far pagare i clienti direttamente dal telefono non è ancora disponibile.
-                Ordynora oggi gestisce QR, ordini, cucina, bar, cassa e richiesta conto; gli incassi online dal tavolo saranno attivati in una prossima versione.
+                Questa funzione non è ancora disponibile nel prodotto commerciale. La stiamo preparando per una prossima release: per ora Ordynora gestisce menu QR, ordini, cucina, bar, cassa, tavoli e abbonamento.
               </p>
             </div>
             <div className="billing-connect-status" style={connectStatusStyle}>
               <span style={{ ...connectDotStyle, background: "#f59e0b" }} />
               <div>
-                <b>In sviluppo</b>
-                <small>Nessun conto Stripe del ristorante da collegare ora.</small>
+                <b>Roadmap prodotto</b>
+                <small>Nessuna richiesta di collegamento Stripe al ristorante finché la funzione non è pronta.</small>
               </div>
             </div>
             <div className="billing-connect-actions" style={connectActionsStyle}>
-              <button type="button" disabled style={{ ...secondaryBtn, opacity: 0.65, cursor: "not-allowed" }}>
-                Disponibile presto
-              </button>
-              <Link to="/contattaci" style={{ ...primaryBtn, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+              <a href={chainContactUrl} target="_blank" rel="noreferrer" style={primaryBtn}>
                 Segnalami interesse
-              </Link>
+              </a>
             </div>
           </section>
 
-          <section style={plansGridStyle}>
+          <section className="billing-plans-grid" style={plansGridStyle}>
             {planOrder.map((id) => (
               <PlanCard key={id} id={id} currentPlan={currentPlan} loadingPlan={loadingPlan} configured={!data || Boolean(configuredPlans[id])} onCheckout={handleCheckout} />
             ))}

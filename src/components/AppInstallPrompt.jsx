@@ -1,24 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { usePwaInstall } from "../context/PwaInstallContext.jsx";
+import usePwaInstall from "../hooks/usePwaInstall";
 
-const APP_PATHS = ["/staff", "/login", "/dashboard", "/cucina", "/bar", "/cassa", "/tavoli"];
+const APP_PATHS = ["/staff", "/login", "/dashboard", "/cucina", "/bar", "/cassa", "/tavoli", "/admin", "/qr", "/billing"];
+const DISMISS_KEY = "ordynora_install_banner_dismissed";
 
 export default function AppInstallPrompt() {
   const location = useLocation();
-  const { canPrompt, installed, ios, requestInstall } = usePwaInstall();
-  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem("ordynora_install_dismissed") === "1");
+  const pwa = usePwaInstall();
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === "1");
+  const [manualHelp, setManualHelp] = useState(false);
+
+  useEffect(() => {
+    function handleReopen() {
+      localStorage.removeItem(DISMISS_KEY);
+      setDismissed(false);
+      setManualHelp(false);
+    }
+
+    window.addEventListener("ordynora:show-install-banner", handleReopen);
+    return () => window.removeEventListener("ordynora:show-install-banner", handleReopen);
+  }, []);
 
   const relevantPath = APP_PATHS.some((path) => location.pathname.startsWith(path));
-  if (!relevantPath || installed || dismissed || (!canPrompt && !ios)) return null;
+  if (!relevantPath || pwa.installed || dismissed || !pwa.available) return null;
 
   async function install() {
-    const result = await requestInstall();
-    if (result?.outcome === "manual") window.alert(result.message);
+    const result = await pwa.requestInstall();
+    if (result.status === "manual" || result.status === "dismissed") {
+      setManualHelp(true);
+    }
   }
 
   function dismiss() {
-    sessionStorage.setItem("ordynora_install_dismissed", "1");
+    localStorage.setItem(DISMISS_KEY, "1");
     setDismissed(true);
   }
 
@@ -26,9 +41,15 @@ export default function AppInstallPrompt() {
     <aside className="em-install-prompt" aria-label="Installa Ordynora">
       <div>
         <b>Ordynora sul telefono</b>
-        <span>{canPrompt ? "Aprilo come un'app, senza cercarlo ogni volta." : "Tocca Condividi e poi Aggiungi alla schermata Home."}</span>
+        <span>
+          {manualHelp
+            ? pwa.manualCopy
+            : pwa.canPrompt
+              ? "Aprilo come un'app, senza cercarlo ogni volta. Se chiudi questa notifica, il bottone Installa app resta sempre nella sidebar."
+              : pwa.manualCopy}
+        </span>
       </div>
-      <button type="button" onClick={install}>Installa</button>
+      <button type="button" onClick={install}>{pwa.canPrompt ? "Installa app" : "Guida"}</button>
       <button type="button" className="em-install-dismiss" onClick={dismiss} aria-label="Chiudi">×</button>
     </aside>
   );

@@ -10,7 +10,7 @@ function timeAgo(value) {
 
 export default function DashboardAlerts({ alerts = {} }) {
   const items = [
-    ...(alerts.subscriptionAlerts || []).map((s) => ({ id: `s-${s.id}`, tone: "danger", title: `Abbonamento ${s.status}`, text: `Controlla pagamento e portale Stripe${s.currentPeriodEnd ? ` - scadenza ${new Date(s.currentPeriodEnd).toLocaleDateString("it-IT")}` : ""}` })),
+    ...(alerts.subscriptionAlerts || []).map((s) => ({ id: `s-${s.id}`, tone: "danger", title: `Abbonamento ${s.status}`, text: `Controlla pagamento e portale abbonamento${s.currentPeriodEnd ? ` - scadenza ${new Date(s.currentPeriodEnd).toLocaleDateString("it-IT")}` : ""}` })),
     ...(alerts.paymentAlerts || []).map((p) => ({ id: `p-${p.id}`, tone: "danger", title: `Pagamento ${p.status}`, text: `${p.table || "Tavolo"} - ${timeAgo(p.createdAt)}` })),
     ...(alerts.recentErrors || []).map((e) => ({ id: `e-${e.id}`, tone: "warning", title: e.source || "Errore", text: `${e.message || "Controlla log"} - ${timeAgo(e.createdAt)}` })),
     ...(alerts.unavailableItems || []).map((i) => ({ id: `i-${i.id}`, tone: "info", title: "Prodotto esaurito", text: `${i.name}${i.category ? ` - ${i.category}` : ""}` })),
