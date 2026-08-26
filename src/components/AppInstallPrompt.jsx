@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import usePwaInstall from "../hooks/usePwaInstall";
 
-const APP_PATHS = ["/staff", "/login", "/dashboard", "/cucina", "/bar", "/cassa", "/tavoli", "/admin", "/qr", "/billing"];
+const APP_PATHS = ["/", "/demo", "/register", "/staff", "/login", "/dashboard", "/cucina", "/bar", "/cassa", "/tavoli", "/admin", "/qr", "/billing"];
 const DISMISS_KEY = "ordynora_install_banner_dismissed";
 
 export default function AppInstallPrompt() {
@@ -49,7 +49,7 @@ export default function AppInstallPrompt() {
               : pwa.manualCopy}
         </span>
       </div>
-      <button type="button" onClick={install}>{pwa.canPrompt ? "Installa app" : "Guida"}</button>
+      <button type="button" onClick={install}>{pwa.canPrompt ? "Installa app" : "Come installare"}</button>
       <button type="button" className="em-install-dismiss" onClick={dismiss} aria-label="Chiudi">×</button>
     </aside>
   );

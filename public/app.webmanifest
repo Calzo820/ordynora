@@ -13,19 +13,19 @@
   "categories": ["business", "food", "productivity"],
   "icons": [
     {
-      "src": "/icons/easymenu-192.png",
+      "src": "/icons/ordynora-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/easymenu-512.png",
+      "src": "/icons/ordynora-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/easymenu-maskable-512.png",
+      "src": "/icons/ordynora-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -36,13 +36,13 @@
       "name": "Accesso staff",
       "short_name": "Staff",
       "url": "/staff",
-      "icons": [{ "src": "/icons/easymenu-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icons/ordynora-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Accesso titolare",
       "short_name": "Titolare",
       "url": "/login",
-      "icons": [{ "src": "/icons/easymenu-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icons/ordynora-192.png", "sizes": "192x192" }]
     }
   ]
 }

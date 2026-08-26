@@ -1,6 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
+import AppErrorBoundary from "./components/AppErrorBoundary.jsx";
+import { LocaleProvider } from "./context/LocaleContext.jsx";
 
 import "./index.css";
 import "./styles/easymenu-v2.css";
@@ -10,6 +12,7 @@ import "./styles/operational-ux.css";
 import "./styles/foundation.css";
 import "./styles/premium-final.css";
 import "./styles/responsive-hardening.css";
+import "./styles/surprise-polish.css";
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -19,6 +22,10 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <AppErrorBoundary>
+      <LocaleProvider>
+        <App />
+      </LocaleProvider>
+    </AppErrorBoundary>
   </React.StrictMode>
 );

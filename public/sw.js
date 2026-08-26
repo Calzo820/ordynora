@@ -1,10 +1,11 @@
-const CACHE_NAME = "ordynora-shell-v1";
+const CACHE_NAME = "ordynora-shell-v2";
 const STATIC_SHELL = [
   "/offline.html",
   "/app.webmanifest",
   "/icons/ordynora-192.png",
   "/icons/ordynora-512.png",
   "/icons/ordynora-maskable-512.png",
+  "/icons/ordynora-192.png",
 ];
 
 self.addEventListener("install", (event) => {

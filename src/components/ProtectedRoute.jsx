@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { apiGet, clearAuthSession, getAuthToken } from "../lib/api";
 import ServiceUnavailable from "../pages/ServiceUnavailable.jsx";
+import { canAccessRole, getHomePathByRole, normalizeRole } from "../lib/roles";
 
 function ProtectedRoute({ children, roles = [] }) {
   const token = getAuthToken();
   const [state, setState] = useState({ loading: true, allowed: false, user: null, serviceError: "" });
 
-  const normalizedRoles = useMemo(() => roles.map((role) => String(role || "").toLowerCase()), [roles]);
+  const normalizedRoles = useMemo(() => roles.map(normalizeRole), [roles]);
 
   useEffect(() => {
     let active = true;
@@ -32,12 +33,7 @@ function ProtectedRoute({ children, roles = [] }) {
           localStorage.setItem("restaurant_id", data.restaurant.id || "");
         }
 
-        const userRole = String(user.role || "").toLowerCase();
-        const isSuperAdmin = Boolean(user.isSuperAdmin) || userRole === "superadmin";
-        const allowed =
-          normalizedRoles.length === 0 ||
-          normalizedRoles.includes(userRole) ||
-          (isSuperAdmin && normalizedRoles.includes("superadmin"));
+        const allowed = canAccessRole(normalizedRoles, user);
         if (active) setState({ loading: false, allowed, user, serviceError: "" });
       } catch (error) {
         const message = error?.message || "";
@@ -70,7 +66,7 @@ function ProtectedRoute({ children, roles = [] }) {
     );
   }
 
-  if (!state.allowed) return <Navigate to="/login" replace />;
+  if (!state.allowed) return <Navigate to={getHomePathByRole(state.user?.role, state.user)} replace />;
 
   return children;
 }

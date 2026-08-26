@@ -1,64 +1,113 @@
-# Ordynora — Patch report pre-vendita
+# Ordynora Surprise Hardening Patch
 
-Data: 13 agosto 2026
+Patch preparata sull'ultima ZIP caricata: `ristorantee (35).zip`.
 
-## Base usata
+## Obiettivo
 
-- Base completa: `EasyMenu-aggiornato.zip` (9 agosto 2026), la versione completa più recente disponibile nell'ambiente.
-- Integrato il pacchetto incrementale `EasyMenu-solo-file-modificati.zip` (10 agosto 2026).
-- L'archivio richiesto `/mnt/data/ristorantee (32).zip` non era disponibile.
+Ho fatto un controllo tecnico esteso e ho rinforzato i punti deboli che potevano creare problemi reali prima della vendita o durante una demo con ristoratori.
 
-## PWA e installazione
+## Migliorie applicate
 
-- Centralizzata la cattura di `beforeinstallprompt` in un provider globale: la possibilità di installare non dipende più dalla visibilità del banner.
-- La chiusura del banner vale soltanto per la sessione corrente e non elimina la possibilità di installazione.
-- Aggiunta la voce persistente **Installa l'app** nella navbar per tutti i ruoli autenticati.
-- Gestiti i casi Android/desktop, iOS/iPadOS con istruzioni manuali e lo stato già installato.
-- Aggiornati manifest, titolo pagina e metadati visibili a **Ordynora**.
+### 1. Stabilità app / crash protection
+- Aggiunto `AppErrorBoundary`.
+- Se una pagina React va in errore, l'utente vede una schermata Ordynora pulita invece di una pagina bianca.
+- Aggiunti pulsanti `Ricarica` e `Torna alla home`.
 
-## Ruoli e permessi
+### 2. Multilingua: fix critico provider
+- `main.jsx` ora avvolge l'app con `LocaleProvider`.
+- Questo evita crash nelle pagine che usano `useLocale` o `useTranslatedContent`.
+- Aggiornata la chiave lingua da `easymenu_locale` a `ordynora_locale`, mantenendo migrazione dalla vecchia chiave.
 
-- Corretto l'accesso Bar nella navbar per owner/admin, già previsto da route frontend e backend.
-- Verificato l'allineamento di owner, admin, kitchen, bar, cashier e waiter sulle schermate principali.
-- Rafforzato `requireAuth`: ogni richiesta protetta ricontrolla nel database esistenza, stato attivo, ristorante e ruolo corrente.
-- Disattivazioni e cambi ruolo diventano quindi effettivi subito, anche se il vecchio JWT non è ancora scaduto.
-- Conservati i vincoli owner-only per riapertura conti/cassa ed eliminazione account/esportazione dati.
-- Conservata la separazione per ristorante e il blocco dei dati privati durante impersonificazione SuperAdmin.
+### 3. PWA / installazione app
+- Rafforzata la notifica installazione.
+- La notifica può essere chiusa senza perdere la possibilità di installare l'app.
+- Il bottone installazione in sidebar/impostazioni resta il punto di recupero.
+- Estesi i percorsi dove il prompt può apparire: home, demo, register, login e aree operative.
 
-## Responsività
+### 4. Manifest e service worker
+- Aggiornati i riferimenti icone PWA da `easymenu-*` a `ordynora-*`.
+- Aggiornato `index.html` con favicon Ordynora.
+- Incrementata la cache service worker a `ordynora-shell-v2`, così i client non restano bloccati su asset vecchi.
 
-- Confermate le regole specifiche già presenti per landing, demo, autenticazione, dashboard, menu cliente, onboarding, amministrazione, cucina/bar/cassa/tavoli, QR, report e SuperAdmin.
-- Aggiunta una rete di sicurezza condivisa per immagini, SVG, form, tabelle, shell e dialog.
-- Rafforzati i layout tablet (721–1180 px), wrapping delle toolbar su mobile, dialog entro viewport e contenitori tabellari scorrevoli.
-- Mantenuti i layout operativi a touch target ampi e navigazione laterale adattiva.
+### 5. Ruoli e permessi
+- `ProtectedRoute` ora usa le funzioni centralizzate di `roles.js`.
+- I ruoli vengono normalizzati con alias coerenti.
+- Se un utente entra in una pagina non consentita, viene mandato alla home corretta per il suo ruolo invece che sempre al login.
+- Ridotto il rischio di falsi blocchi per ruoli come `cucina/kitchen`, `cassa/cashier`, `sala/waiter`.
 
-## Coerenza e funzioni non pronte
+### 6. Responsive e UX cross-device
+- Aggiunto `surprise-polish.css`.
+- Rinforzati layout per PC, tablet e telefono.
+- Migliorati safe-area mobile, focus accessibile, card prezzo, sidebar, CTA, errore app, tab orizzontali, tabelle/cards su schermi piccoli.
+- Migliorata leggibilità di testi lunghi con `overflow-wrap`.
+- Migliorate interazioni touch e focus-visible.
 
-- Uniformato il marchio visibile da EasyMenu a **Ordynora** nelle schermate React, lasciando invariati identificatori tecnici/storage e password demo per compatibilità.
-- Pagamento online dal tavolo resta indicato come disponibile presto ed è bloccato anche lato server.
-- Integrato il precedente consolidamento multilingua IT/EN/DE/ES/RU per landing e demo.
-- Corretti caratteri danneggiati emersi durante la normalizzazione dei testi.
+### 7. Naming Ordynora
+- Aggiornati cache key e riferimenti PWA principali verso Ordynora.
+- Lasciati intatti solo elementi legacy tecnici dove servono per recuperare dati salvati in vecchie versioni.
 
-## Dipendenze e sicurezza
+## File modificati o aggiunti
 
-- Aggiornati lockfile frontend e backend con versioni compatibili tramite audit fix.
-- Audit frontend dopo l'aggiornamento: 0 vulnerabilità.
-- Audit backend dopo l'aggiornamento: 0 vulnerabilità.
-- Nessun `npm audit fix --force` eseguito; non sono stati introdotti aggiornamenti forzati incompatibili.
+- `src/main.jsx`
+- `src/components/AppErrorBoundary.jsx`
+- `src/components/AppInstallPrompt.jsx`
+- `src/components/ProtectedRoute.jsx`
+- `src/context/LocaleContext.jsx`
+- `src/lib/i18n.js`
+- `src/styles/surprise-polish.css`
+- `public/app.webmanifest`
+- `public/sw.js`
+- `index.html`
 
-## Verifiche eseguite
+## Test effettuati
 
-- `npm run lint -- --max-warnings=0`: superato, 0 errori e 0 warning.
-- `npm run build`: superato con Vite 8.2.1, 132 moduli trasformati.
-- Controllo sintattico middleware autenticazione: superato.
-- Test traduzioni: 3/3 superati.
-- Test blocco pagamenti tavolo/Stripe Connect: 4/4 superati.
-- Totale test mirati: 7 superati, 0 falliti.
-- Manifest PWA: JSON valido.
-- Scansione caratteri corrotti nei sorgenti UI: nessuna occorrenza residua.
+### Frontend lint
+`npm run lint -- --max-warnings=0`
 
-## Note operative
+Risultato: PASSATO.
 
-- Il progetto dichiara Node.js 20; i controlli locali sono stati eseguiti con Node.js 24.14.0, producendo il solo avviso `EBADENGINE` durante l'installazione.
-- Il pacchetto finale esclude `node_modules`, `dist`, file `.env` reali e cache locali.
-- Prima della vendita restano necessari test manuali su dispositivi reali, configurazione ambiente di produzione, migrazioni database, controllo legale dei documenti e prova completa con un ristorante pilota.
+### Backend env check
+`cd backend && npm run check:env`
+
+Risultato: PASSATO.
+
+### Build
+`npm run build`
+
+Risultato: NON completabile nel sandbox perché la ZIP contiene `node_modules` generato su Windows e nel sandbox Linux manca il binding nativo Rolldown `@rolldown/binding-linux-x64-gnu`.
+
+Questo non è un errore introdotto dalla patch. Sul PC/Render va rilanciato dopo reinstall dipendenze:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+npm run build
+```
+
+Su Windows puoi fare semplicemente:
+
+```powershell
+npm install
+npm run build
+```
+
+## Comandi consigliati dopo aver applicato la patch
+
+```bash
+npm run lint -- --max-warnings=0
+npm run build
+cd backend
+npm run check:env
+```
+
+Poi:
+
+```bash
+git add .
+git commit -m "Ordynora: surprise hardening, PWA, ruoli e responsive"
+git push origin main
+```
+
+## Nota finale
+
+Questa patch non riscrive tutto il prodotto: rafforza i punti più fragili e rende Ordynora più solido da mostrare a un ristoratore.

@@ -1,0 +1,318 @@
+
+/* Ordynora surprise polish: resilience, install flow, responsive and accessibility */
+:root {
+  --ordy-safe-top: env(safe-area-inset-top, 0px);
+  --ordy-safe-right: env(safe-area-inset-right, 0px);
+  --ordy-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ordy-safe-left: env(safe-area-inset-left, 0px);
+}
+
+html {
+  min-width: 320px;
+}
+
+body {
+  min-width: 320px;
+  overscroll-behavior-y: none;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, .65);
+  outline-offset: 3px;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+.ordynora-error-boundary {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: max(24px, var(--ordy-safe-top)) max(16px, var(--ordy-safe-right)) max(24px, var(--ordy-safe-bottom)) max(16px, var(--ordy-safe-left));
+  background:
+    radial-gradient(circle at 20% 10%, rgba(37,99,235,.24), transparent 30%),
+    linear-gradient(135deg, #06121f, #0b2d2a);
+  color: #f8fafc;
+}
+
+.ordynora-error-boundary section {
+  width: min(520px, 100%);
+  padding: clamp(22px, 5vw, 36px);
+  border-radius: 28px;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow: 0 28px 80px rgba(0,0,0,.34);
+  backdrop-filter: blur(18px);
+}
+
+.ordynora-error-boundary span {
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+
+.ordynora-error-boundary h1 {
+  margin: 12px 0;
+  font-size: clamp(30px, 7vw, 48px);
+  line-height: .95;
+  letter-spacing: -.06em;
+}
+
+.ordynora-error-boundary p {
+  color: rgba(248,250,252,.78);
+  line-height: 1.6;
+}
+
+.ordynora-error-boundary code {
+  display: block;
+  margin: 16px 0;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(15,23,42,.64);
+  color: #bfdbfe;
+  overflow-wrap: anywhere;
+}
+
+.ordynora-error-boundary div {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ordynora-error-boundary button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 18px;
+  font-weight: 950;
+  color: #052e16;
+  background: #86efac;
+}
+
+.ordynora-error-boundary button + button {
+  color: #f8fafc;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.16);
+}
+
+.em-install-prompt {
+  z-index: 1300 !important;
+  padding-bottom: max(14px, var(--ordy-safe-bottom)) !important;
+}
+
+.em-install-prompt button {
+  white-space: nowrap;
+}
+
+.locale-switcher select {
+  max-width: 100%;
+}
+
+.landing-price-card,
+.landing-card-link,
+.demo-hero-actions button,
+.settings-card,
+.management-card,
+.kds-ticket,
+.hc-list-panel,
+.hc-detail-panel {
+  isolation: isolate;
+}
+
+.landing-card-link:focus-visible,
+.demo-hero-actions button:focus-visible,
+.settings-card:focus-visible,
+.em-sidebar__link:focus-visible,
+.em-sidebar__sublink:focus-visible,
+.em-sidebar__btn:focus-visible {
+  outline: 3px solid rgba(34,197,94,.7);
+  outline-offset: 3px;
+}
+
+.landing-pricing-grid a {
+  color: inherit;
+}
+
+.landing-card-cta::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 8px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.em-sidebar__restaurant,
+.em-sidebar__email,
+.management-row-meta,
+.demo-login-row b,
+.demo-cash-row strong,
+.hc-table-row strong,
+.cm-product-title,
+.cm-cart-summary {
+  overflow-wrap: anywhere;
+}
+
+@media (hover: hover) {
+  .em-sidebar__btn:hover,
+  .landing-card-link:hover,
+  .settings-card:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@media (max-width: 1180px) {
+  .app-shell,
+  .management-os,
+  .kds-board,
+  .hc-cashdesk,
+  .tables-calendar-page {
+    width: 100% !important;
+  }
+
+  .billing-status-strip,
+  .billing-connect-card,
+  .billing-plans-grid,
+  .billing-chain-card,
+  .settings-os-grid,
+  .menu-editor-layout,
+  .dashboard-layout,
+  .dash-main-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 820px) {
+  body {
+    background-attachment: scroll;
+  }
+
+  .em-menu-toggle {
+    top: max(10px, var(--ordy-safe-top)) !important;
+    left: max(10px, var(--ordy-safe-left)) !important;
+  }
+
+  .landing-page,
+  .demo-page,
+  .legal-page,
+  .contact-shell {
+    width: 100%;
+  }
+
+  .landing-hero-content,
+  .landing-section-title,
+  .demo-hero,
+  .management-hero-main,
+  .hc-hero,
+  .kds-topbar,
+  .tables-calendar-toolbar {
+    text-align: left !important;
+  }
+
+  .landing-nav-actions,
+  .demo-actions,
+  .landing-cta-row,
+  .landing-beta-actions,
+  .statusActionsStyle,
+  .billing-connect-actions,
+  .hc-actions,
+  .kds-topbar__tools {
+    width: 100%;
+  }
+
+  .landing-nav-actions > *,
+  .demo-actions > *,
+  .landing-beta-actions > *,
+  .billing-connect-actions > *,
+  .hc-actions > *,
+  .kds-topbar__tools > * {
+    flex: 1 1 160px;
+  }
+
+  .landing-service-proof {
+    grid-template-columns: 1fr !important;
+  }
+
+  .management-card,
+  .settings-card,
+  .dashboard-card,
+  .auth-card,
+  .staff-access-card,
+  .billing-connect-card,
+  .billing-chain-card {
+    box-shadow: 0 16px 34px rgba(15,23,42,.10) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell,
+  .management-os,
+  .demo-page,
+  .legal-page,
+  .contact-shell,
+  .tables-calendar-page,
+  .kds-board,
+  .hc-cashdesk {
+    padding-left: max(12px, var(--ordy-safe-left)) !important;
+    padding-right: max(12px, var(--ordy-safe-right)) !important;
+  }
+
+  .landing-nav-actions,
+  .demo-actions,
+  .landing-cta-row,
+  .landing-beta-actions,
+  .management-row,
+  .management-upload-row,
+  .hc-actions,
+  .kds-ticket__actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .landing-nav-actions > *,
+  .demo-actions > *,
+  .landing-cta-row > *,
+  .landing-beta-actions > *,
+  .management-row > *,
+  .management-upload-row > *,
+  .hc-actions > *,
+  .kds-ticket__actions > * {
+    width: 100% !important;
+  }
+
+  .tables-compact-grid,
+  .em-table-grid,
+  .em-table-grid--cash {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .cm-product-image,
+  .demo-menu-card img {
+    aspect-ratio: 16 / 10;
+    height: auto !important;
+  }
+
+  .ordynora-error-boundary div {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  .tables-compact-grid,
+  .em-table-grid,
+  .em-table-grid--cash {
+    grid-template-columns: 1fr !important;
+  }
+
+  .em-sidebar {
+    width: calc(100vw - max(12px, var(--ordy-safe-right))) !important;
+  }
+}
