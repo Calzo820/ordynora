@@ -1,11 +1,7 @@
-export const requireRole = (role) => {
-  return (req, res, next) => {
-    const userRole = req.headers["role"];
-
-    if (userRole !== role) {
-      return res.status(403).json({ error: "Accesso negato" });
-    }
-
-    next();
-  };
-};
+// Compatibilità per vecchi import: l'autorizzazione usa sempre il JWT verificato
+// dal middleware canonico e non accetta mai il ruolo dichiarato negli header.
+export {
+  denyImpersonatedPrivateData,
+  requireAuth,
+  requireRole,
+} from "./auth.middleware.js";

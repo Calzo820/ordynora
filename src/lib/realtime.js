@@ -3,6 +3,7 @@ import { API_URL, getAuthToken } from "./api";
 
 const seenEvents = new Map();
 const MAX_SEEN = 600;
+let audioContext = null;
 
 function rememberEvent(eventName, payload = {}) {
   const key = payload.eventId || `${eventName}:${payload.orderId || payload.tableId || "global"}:${payload.updatedAt || payload.createdAt || payload.requestedAt || ""}`;
@@ -26,7 +27,6 @@ export function createRestaurantSocket(options = {}) {
     transports: ["websocket", "polling"],
     withCredentials: true,
     auth: token ? { token } : undefined,
-    query: token ? { token } : undefined,
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 500,
@@ -45,7 +45,11 @@ export function createRestaurantSocket(options = {}) {
 
   socket.on("connect_error", (error) => dispatchSocketStatus({ status: "recovering", message: error?.message || "Realtime in riconnessione" }));
   socket.io.on("reconnect", () => dispatchSocketStatus({ status: "connected", message: "Realtime riconnesso" }));
-  socket.io.on("reconnect_attempt", (attempt) => dispatchSocketStatus({ status: "recovering", message: `Realtime riconnessione ${attempt}` }));
+  socket.io.on("reconnect_attempt", (attempt) => {
+    const latestToken = getAuthToken();
+    socket.auth = latestToken ? { token: latestToken } : {};
+    dispatchSocketStatus({ status: "recovering", message: `Realtime riconnessione ${attempt}` });
+  });
   socket.on("disconnect", (reason) => dispatchSocketStatus({ status: reason === "io client disconnect" ? "offline" : "recovering", message: "Realtime disconnesso" }));
   socket.on("connect", () => dispatchSocketStatus({ status: "connected", message: "Realtime attivo" }));
   socket.on("server-health", (payload) => dispatchSocketStatus({ status: payload?.ok ? "connected" : "recovering", message: payload?.message || "Stato server aggiornato" }));
@@ -60,6 +64,33 @@ export function subscribeSocketStatus(callback) {
 }
 
 export function playOrderSound() {
-  const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-  return audio.play().catch(() => {});
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return Promise.resolve();
+    audioContext ||= new AudioContextClass();
+
+    const play = () => {
+      const now = audioContext.currentTime;
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, now);
+      oscillator.frequency.exponentialRampToValueAtTime(660, now + 0.18);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.22, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.24);
+    };
+
+    if (audioContext.state === "suspended") {
+      return audioContext.resume().then(play).catch(() => {});
+    }
+    play();
+  } catch {
+    // L'audio non deve mai bloccare l'operatività di cucina o bar.
+  }
+  return Promise.resolve();
 }

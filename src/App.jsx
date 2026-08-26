@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ConnectionStatus from "./components/ConnectionStatus.jsx";
 import AppInstallPrompt from "./components/AppInstallPrompt.jsx";
+import AppUpdatePrompt from "./components/AppUpdatePrompt.jsx";
 import ServiceUnavailable from "./pages/ServiceUnavailable.jsx";
 
 const AdminPanel = lazy(() => import("./pages/AdminPanel.jsx"));
@@ -46,6 +47,7 @@ export default function App() {
     <BrowserRouter>
       <ConnectionStatus />
       <AppInstallPrompt />
+      <AppUpdatePrompt />
       <Suspense fallback={<PageFallback />}>
         <Routes>
           <Route path="/" element={<Landing />} />

@@ -7,19 +7,8 @@ import {
   publicApiPost,
   setAuthToken,
 } from "../lib/api";
+import { getHomePathByRole } from "../lib/roles";
 import "../styles/auth.css";
-
-function getDashboardPathByRole(role) {
-  const normalized = String(role || "").toLowerCase();
-
-  if (normalized === "owner" || normalized === "admin") return "/dashboard";
-  if (normalized === "kitchen") return "/cucina";
-  if (normalized === "bar") return "/bar";
-  if (normalized === "cashier") return "/cassa";
-  if (normalized === "waiter") return "/tavoli";
-
-  return "/dashboard";
-}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -104,9 +93,7 @@ export default function Login() {
       localStorage.removeItem("restaurant_id");
     }
     setSuccesso("Login effettuato con successo.");
-    const redirectPath = data?.user?.isSuperAdmin
-      ? "/super-admin"
-      : getDashboardPathByRole(data?.user?.role || "owner");
+    const redirectPath = getHomePathByRole(data?.user?.role || "owner", data?.user);
     setTimeout(() => navigate(redirectPath), 350);
   }
 

@@ -436,10 +436,13 @@ export const createPublicOrder = async (req, res) => {
   }
 };
 
-export const getPublicOrderByTokenOrId = async (req, res) => {
+export const getPublicOrderByToken = async (req, res) => {
   try {
     const { token } = req.params;
-    const order = await prisma.order.findFirst({ where: { OR: [{ publicToken: token }, { id: token }] }, include: { restaurant: true, table: true, items: { include: { menuItem: true } } } });
+    const order = await prisma.order.findUnique({
+      where: { publicToken: token },
+      include: { restaurant: true, table: true, items: { include: { menuItem: true } } },
+    });
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
     return res.json({
       id: order.id,
@@ -470,7 +473,7 @@ export const getPublicOrderByTokenOrId = async (req, res) => {
       table: order.table ? { id: order.table.id, name: order.table.name, code: order.table.code } : null,
     });
   } catch (error) {
-    console.error("getPublicOrderByTokenOrId error:", error);
+    console.error("getPublicOrderByToken error:", error);
     return res.status(500).json({ message: "Errore durante il recupero dell'ordine" });
   }
 };
@@ -1450,8 +1453,8 @@ export const deleteOrder = async (req, res) => {
 export const requestPublicBill = async (req, res) => {
   try {
     const { token } = req.params;
-    const order = await prisma.order.findFirst({
-      where: { OR: [{ publicToken: token }, { id: token }] },
+    const order = await prisma.order.findUnique({
+      where: { publicToken: token },
       include: { table: true, restaurant: true, tableSession: true },
     });
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
@@ -1497,8 +1500,8 @@ export const requestPublicStaff = async (req, res) => {
     const rawReason = String(req.body?.reason || "assistenza").trim();
     const reason = rawReason.slice(0, 160) || "assistenza";
 
-    const order = await prisma.order.findFirst({
-      where: { OR: [{ publicToken: token }, { id: token }] },
+    const order = await prisma.order.findUnique({
+      where: { publicToken: token },
       include: { table: true, restaurant: true, tableSession: true },
     });
 

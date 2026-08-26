@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../lib/api";
 import { imageFileToDataUrl } from "../lib/imageFiles";
+import { getRoleLabel } from "../lib/roles";
 import usePwaInstall from "../hooks/usePwaInstall";
 import { appShellStyle, glowPageStyle } from "../styles/pageStyles";
 import "../styles/management-os.css";
@@ -79,15 +80,6 @@ function bySortThenName(a, b) {
 function getInitialTab(search = window.location.search) {
   const tab = new URLSearchParams(search || "").get("tab") || "menu";
   return ["menu", "tables", "staff", "settings"].includes(tab) ? tab : "menu";
-}
-
-function roleLabel(role) {
-  if (role === "kitchen") return "Cucina";
-  if (role === "bar") return "Bar";
-  if (role === "cashier") return "Cassa";
-  if (role === "waiter") return "Sala / cameriere";
-  if (role === "admin") return "Admin";
-  return role || "Staff";
 }
 
 function SectionHead({ title, subtitle, action }) {
@@ -846,7 +838,7 @@ export default function AdminPanel({ embedded = false } = {}) {
               <div key={user.id} className="management-list-row">
                 <div>
                   <div className="management-row-title">{user.name || user.email}</div>
-                  <div className="management-row-meta">{user.pinEnabled ? "Accesso PIN" : user.email} - {roleLabel(user.role)}</div>
+                  <div className="management-row-meta">{user.pinEnabled ? "Accesso PIN" : user.email} - {getRoleLabel(user.role)}</div>
                 </div>
                 <div className="management-row" style={{ justifyContent: "flex-end" }}>
                   <span className={`management-badge ${user.isActive ? "green" : "red"}`}>{user.isActive ? "Attivo" : "Disattivo"}</span>

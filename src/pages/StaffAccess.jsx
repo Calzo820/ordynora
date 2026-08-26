@@ -1,27 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import logoOrdynora from "../assets/logo-easymenu.png";
+import { ORDYNORA_LOGO_URL as logoOrdynora } from "../lib/brand";
 import { apiPost, clearAuthSession, getAuthToken, setAuthToken } from "../lib/api";
+import { getHomePathByRole, getRoleLabel } from "../lib/roles";
 import "../styles/staff-access.css";
 
-const RESTAURANT_CODE_KEY = "easymenu_staff_restaurant_code";
-
-function rolePath(role) {
-  if (role === "kitchen") return "/cucina";
-  if (role === "bar") return "/bar";
-  if (role === "cashier") return "/cassa";
-  if (role === "waiter") return "/tavoli";
-  return "/dashboard";
-}
-
-function roleLabel(role) {
-  if (role === "kitchen") return "Cucina";
-  if (role === "bar") return "Bar";
-  if (role === "cashier") return "Cassa";
-  if (role === "waiter") return "Sala";
-  if (role === "admin") return "Responsabile";
-  return "Staff";
-}
+const RESTAURANT_CODE_KEY = "ordynora_staff_restaurant_code";
+const LEGACY_RESTAURANT_CODE_KEY = "easymenu_staff_restaurant_code";
 
 function storedUser() {
   try {
@@ -43,7 +28,9 @@ function completeSession(data) {
 export default function StaffAccess() {
   const navigate = useNavigate();
   const queryCode = new URLSearchParams(window.location.search).get("locale") || "";
-  const savedCode = localStorage.getItem(RESTAURANT_CODE_KEY) || "";
+  const savedCode = localStorage.getItem(RESTAURANT_CODE_KEY)
+    || localStorage.getItem(LEGACY_RESTAURANT_CODE_KEY)
+    || "";
   const [restaurantCode, setRestaurantCode] = useState(queryCode || savedCode);
   const [rememberedCode, setRememberedCode] = useState(Boolean(queryCode || savedCode));
   const [pin, setPin] = useState("");
@@ -84,7 +71,8 @@ export default function StaffAccess() {
       const data = await apiPost("/auth/pin-login", { restaurantCode: code, pin });
       completeSession(data);
       localStorage.setItem(RESTAURANT_CODE_KEY, code);
-      navigate(rolePath(data?.user?.role), { replace: true });
+      localStorage.removeItem(LEGACY_RESTAURANT_CODE_KEY);
+      navigate(getHomePathByRole(data?.user?.role, data?.user), { replace: true });
     } catch (loginError) {
       updatePin("");
       setError(loginError.message || "PIN non riconosciuto. Riprova.");
@@ -99,6 +87,7 @@ export default function StaffAccess() {
     setPin("");
     setError("");
     localStorage.removeItem(RESTAURANT_CODE_KEY);
+    localStorage.removeItem(LEGACY_RESTAURANT_CODE_KEY);
   }
 
   function changeOperator() {
@@ -114,9 +103,9 @@ export default function StaffAccess() {
           <img src={logoOrdynora} alt="Ordynora" />
           <span>Sessione staff attiva</span>
           <h1>{currentUser.name || "Operatore"}</h1>
-          <p>{roleLabel(currentUser.role)} è già collegato su questo dispositivo.</p>
-          <button type="button" onClick={() => navigate(rolePath(currentUser.role), { replace: true })}>
-            Continua in {roleLabel(currentUser.role)}
+          <p>{getRoleLabel(currentUser.role)} è già collegato su questo dispositivo.</p>
+          <button type="button" onClick={() => navigate(getHomePathByRole(currentUser.role, currentUser), { replace: true })}>
+            Continua in {getRoleLabel(currentUser.role)}
           </button>
           <button type="button" className="secondary" onClick={changeOperator}>Cambia operatore</button>
         </section>

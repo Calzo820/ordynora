@@ -19,7 +19,11 @@ export async function refreshSession() {
 
 export async function logoutSession() {
   try {
-    await apiPost("/auth/logout", {}, {}, { withAuth: false, skipRefresh: true });
+    await apiPost("/auth/logout", {}, {}, {
+      withAuth: false,
+      skipRefresh: true,
+      timeoutMs: 5000,
+    });
   } finally {
     clearAuthSession();
   }

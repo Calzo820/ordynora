@@ -1,5 +1,7 @@
-export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-export const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 60000);
+const VITE_ENV = import.meta.env || {};
+
+export const API_URL = VITE_ENV.VITE_API_URL || "http://localhost:5000";
+export const API_TIMEOUT_MS = Number(VITE_ENV.VITE_API_TIMEOUT_MS || 60000);
 
 function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -45,6 +47,7 @@ export function clearAuthSession() {
   localStorage.removeItem("ristorante_attivo");
   localStorage.removeItem("restaurant_slug");
   localStorage.removeItem("restaurant_id");
+  localStorage.removeItem("superadmin_platform_session");
 }
 
 async function parseResponse(response) {

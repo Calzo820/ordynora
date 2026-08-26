@@ -241,6 +241,11 @@ textarea {
     bottom: max(10px, env(safe-area-inset-bottom)) !important;
     max-width: none !important;
   }
+
+  .em-install-prompt.em-update-prompt {
+    top: max(10px, env(safe-area-inset-top)) !important;
+    bottom: auto !important;
+  }
 }
 
 @media (max-width: 560px) {

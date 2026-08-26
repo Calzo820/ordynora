@@ -16,6 +16,25 @@ test.after(() => {
 test("health endpoint responds", async () => {
   const res = await request(app).get("/health").expect(200);
   assert.equal(res.body.ok, true);
+  assert.equal(res.body.service, "ordynora-backend");
+  assert.equal(res.headers["x-content-type-options"], "nosniff");
+  assert.match(res.headers["content-security-policy"], /frame-ancestors 'none'/);
+});
+
+test("malformed JSON returns a client error instead of a generic 500", async () => {
+  const res = await request(app)
+    .post("/auth/login")
+    .set("Content-Type", "application/json")
+    .send('{"email":')
+    .expect(400);
+  assert.match(res.body.message, /JSON non valido/);
+});
+
+test("unknown API routes stay JSON and never fall through to the SPA", async () => {
+  const res = await request(app).get("/orders/does-not-exist").expect(404);
+  assert.match(res.headers["content-type"], /json/);
+  assert.equal(res.body.message, "Rotta API non trovata");
+  assert.ok(res.body.requestId);
 });
 
 test("login rejects malformed email before DB lookup", async () => {

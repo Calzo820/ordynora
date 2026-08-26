@@ -55,6 +55,10 @@ export const requireAuth = async (req, res, next) => {
 };
 
 export const requireRole = (roles = []) => {
+  const allowedRoles = (Array.isArray(roles) ? roles : [roles])
+    .map((role) => String(role || "").trim().toLowerCase())
+    .filter(Boolean);
+
   return (req, res, next) => {
     if (req.user?.isSuperAdmin) {
       return next();
@@ -64,7 +68,7 @@ export const requireRole = (roles = []) => {
       return res.status(401).json({ message: "Utente non autenticato" });
     }
 
-    if (!roles.includes(req.user.role)) {
+    if (!allowedRoles.includes(String(req.user.role).toLowerCase())) {
       return res.status(403).json({ message: "Permessi insufficienti" });
     }
 

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import logoOrdynora from "../assets/logo-easymenu.png";
 import usePwaInstall from "../hooks/usePwaInstall";
-import { getRoleLabel, isAdminRole, isSuperAdminUser } from "../lib/roles";
+import { ORDYNORA_LOGO_URL as logoOrdynora } from "../lib/brand";
+import { getRoleLabel, isAdminRole, isSuperAdminUser, normalizeRole } from "../lib/roles";
+import { logoutSession } from "../lib/session";
 
 function getRistoranteAttivo() {
   return localStorage.getItem("ristorante_attivo") || "";
@@ -43,13 +44,8 @@ function restorePlatformSession() {
   }
 }
 
-function logout() {
-  localStorage.removeItem("auth_token");
-  localStorage.removeItem("auth_user");
-  localStorage.removeItem("auth_restaurant");
-  localStorage.removeItem("ristorante_attivo");
-  localStorage.removeItem("restaurant_slug");
-  localStorage.removeItem("restaurant_id");
+async function logout() {
+  await logoutSession();
   localStorage.removeItem("superadmin_platform_session");
   window.location.href = "/login";
 }
@@ -67,11 +63,10 @@ function getAdminTabFromSearch(search) {
 export default function Navbar() {
   const location = useLocation();
   const user = getUser();
-  const role = (user?.role || "").toLowerCase();
+  const role = normalizeRole(user?.role);
   const logged = isLoggedIn();
   const isSuperAdmin = isSuperAdminUser(user) || location.pathname.startsWith("/super-admin");
   const impersonating = hasPlatformSession() && !isSuperAdmin;
-  const isOperational = ["/cucina", "/bar", "/cassa", "/tavoli"].some((path) => location.pathname.startsWith(path));
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [installMessage, setInstallMessage] = useState("");
@@ -99,6 +94,20 @@ export default function Navbar() {
       document.body.classList.remove("em-sidebar-ready", "em-sidebar-open", "em-sidebar-closed");
     };
   }, [logged, open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
 
   const links = !logged
     ? []
@@ -147,7 +156,7 @@ export default function Navbar() {
   }
 
   function handleNavigate() {
-    if (isOperational || window.innerWidth <= 1180) setOpen(false);
+    setOpen(false);
   }
 
   async function handleInstallClick() {
@@ -295,14 +304,14 @@ export default function Navbar() {
         type="button"
         aria-label={open ? "Chiudi navigazione" : "Apri navigazione"}
         aria-expanded={open}
-        aria-controls="easymenu-sidebar"
+        aria-controls="ordynora-sidebar"
         onClick={() => setOpen((prev) => !prev)}
       >
         <span className={open ? "em-menu-glyph is-close" : "em-menu-glyph"} aria-hidden="true" />
       </button>
-      <div className={open ? "em-sidebar-backdrop is-open" : "em-sidebar-backdrop"} onClick={() => setOpen(false)} />
+      <div className={open ? "em-sidebar-backdrop is-open" : "em-sidebar-backdrop"} onClick={() => setOpen(false)} aria-hidden="true" />
 
-      <aside id="easymenu-sidebar" className={open ? "em-sidebar is-open" : "em-sidebar"} aria-label="Navigazione Ordynora">
+      <aside id="ordynora-sidebar" className={open ? "em-sidebar is-open" : "em-sidebar"} aria-label="Navigazione Ordynora">
         <div className="em-sidebar__brand">
           <div className="em-sidebar__logo"><img src={logoOrdynora} alt="Ordynora" /></div>
           <div style={{ minWidth: 0 }}>

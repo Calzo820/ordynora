@@ -1,15 +1,11 @@
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar.jsx";
+import { getHomePathByRole } from "../lib/roles";
 
 function getPrimaryTarget() {
   try {
     const user = JSON.parse(localStorage.getItem("auth_user") || "null");
-    const role = String(user?.role || "").toLowerCase();
-    if (role === "kitchen") return "/cucina";
-    if (role === "bar") return "/bar";
-    if (role === "cashier") return "/cassa";
-    if (role === "waiter") return "/tavoli";
-    if (role === "superadmin" || user?.isSuperAdmin) return "/super-admin";
+    return getHomePathByRole(user?.role, user);
   } catch {
     // La destinazione predefinita resta la dashboard.
   }

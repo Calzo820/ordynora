@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import logoOrdynora from "../assets/logo-easymenu.png";
+import { ORDYNORA_LOGO_URL as logoOrdynora } from "../lib/brand";
 import RestaurantDataControls from "../components/RestaurantDataControls.jsx";
 import "../styles/legal.css";
 

@@ -14,6 +14,10 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: SESSION_DAYS
+        value: "14"
       - key: CLIENT_URL
         sync: false
       - key: FRONTEND_URL
@@ -45,7 +49,7 @@ services:
       - key: MAIL_FROM_EMAIL
         value: easy.menu.service@gmail.com
       - key: MAIL_FROM_NAME
-        value: EasyMenu
+        value: Ordynora
       - key: GOOGLE_TRANSLATE_API_KEY
         sync: false
       - key: MONITOR_WEBHOOK_URL

@@ -1280,6 +1280,18 @@ body .em-sidebar__avatar {
   font-size: 19px;
 }
 
+.em-update-prompt {
+  top: max(18px, env(safe-area-inset-top));
+  bottom: auto;
+  z-index: 1350;
+  background: #123b6b;
+}
+
+.em-update-prompt button:disabled {
+  cursor: wait;
+  opacity: .7;
+}
+
 @media (max-width: 560px) {
   .em-install-prompt {
     right: 14px;
@@ -1295,6 +1307,11 @@ body .em-sidebar__avatar {
   .em-install-prompt .em-install-dismiss {
     grid-column: 2;
     grid-row: 1;
+  }
+
+  .em-update-prompt {
+    top: max(10px, env(safe-area-inset-top));
+    bottom: auto;
   }
 }
 
@@ -1595,13 +1612,13 @@ body .em-sidebar__avatar {
     bottom: 8px !important;
     left: auto !important;
     max-width: calc(100vw - 16px) !important;
-    flex-wrap: nowrap !important;
+    flex-wrap: wrap !important;
     align-items: center !important;
   }
 
   .em-connection b {
     width: auto !important;
-    margin-left: auto !important;
+    margin-left: 18px !important;
   }
 }
 

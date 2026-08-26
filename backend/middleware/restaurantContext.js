@@ -1,4 +1,4 @@
-import prisma from "../prisma/client.js";
+import prisma from "../lib/prisma.js";
 
 export default async function restaurantContext(req, res, next) {
   try {

@@ -245,8 +245,12 @@ export default function Cliente() {
       applySyncedOrder(queueId, result);
     };
 
+    window.addEventListener("ordynora:offline-order-synced", onSynced);
     window.addEventListener("easymenu:offline-order-synced", onSynced);
-    return () => window.removeEventListener("easymenu:offline-order-synced", onSynced);
+    return () => {
+      window.removeEventListener("ordynora:offline-order-synced", onSynced);
+      window.removeEventListener("easymenu:offline-order-synced", onSynced);
+    };
   }, [order?.id, slug, tableToken]);
 
   useEffect(() => {
@@ -308,7 +312,7 @@ export default function Cliente() {
   }, [cart, slug, tableToken]);
 
   useEffect(() => {
-    const token = order?.publicToken || order?.id;
+    const token = order?.publicToken;
     if (!token) return undefined;
 
     let active = true;
@@ -496,7 +500,7 @@ export default function Cliente() {
   }
 
   async function payOnline() {
-    const token = order?.publicToken || order?.id;
+    const token = order?.publicToken;
     if (!token || payment.loading) return;
 
     try {
@@ -512,18 +516,21 @@ export default function Cliente() {
   }
 
   async function requestService(type) {
-    const token = order?.publicToken || order?.id;
-    if (!token) return;
-
     const isBill = type === "bill";
+
+    if (isDemo) {
+      setServiceMessage(isBill ? "Richiesta conto inviata alla cassa demo." : "Cameriere avvisato nella demo.");
+      return;
+    }
+
+    const token = order?.publicToken;
+    if (!token) {
+      setServiceMessage("Attendi la conferma di invio dell'ordine prima di richiedere assistenza.");
+      return;
+    }
 
     try {
       setServiceMessage("");
-      if (isDemo) {
-        setServiceMessage(isBill ? "Richiesta conto inviata alla cassa demo." : "Cameriere avvisato nella demo.");
-        return;
-      }
-
       const data = await publicApiPost(
         `/orders/public/${encodeURIComponent(token)}/${isBill ? "request-bill" : "call-staff"}`,
         isBill ? {} : { reason: "Richiesta dal menu cliente" }

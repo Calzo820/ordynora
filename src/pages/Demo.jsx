@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import LocaleSwitcher from "../components/LocaleSwitcher";
 import { useLocale } from "../context/LocaleContext";
 import { useTranslatedContent } from "../hooks/useTranslatedContent";
-import logoOrdynora from "../assets/logo-easymenu.png";
+import { ORDYNORA_LOGO_URL as logoOrdynora } from "../lib/brand";
 import { demoDishImage } from "../lib/demoVisuals";
 import "../styles/demo.css";
 

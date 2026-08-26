@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import LocaleSwitcher from "../components/LocaleSwitcher";
 import { useTranslatedContent } from "../hooks/useTranslatedContent";
-import logoOrdynora from "../assets/logo-easymenu.png";
+import { ORDYNORA_LOGO_URL as logoOrdynora } from "../lib/brand";
 import restaurantServiceImage from "../assets/landing-restaurant-service-v2.jpg";
 
 const SUPPORT_EMAIL = "easy.menu.service@gmail.com";

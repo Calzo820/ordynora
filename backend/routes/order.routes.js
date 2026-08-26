@@ -6,7 +6,7 @@ import {
   createPublicOrder,
   getOrders,
   getServiceOrders,
-  getPublicOrderByTokenOrId,
+  getPublicOrderByToken,
   requestPublicBill,
   requestPublicStaff,
   deleteOrder,
@@ -23,7 +23,7 @@ import { validateExtraPayload, validateOrderStatusPayload, validatePublicOrderPa
 const router = express.Router();
 
 router.post("/public", validatePublicOrderPayload, createPublicOrder);
-router.get("/public/:token", getPublicOrderByTokenOrId);
+router.get("/public/:token", getPublicOrderByToken);
 router.post("/public/:token/request-bill", requestPublicBill);
 router.post("/public/:token/call-staff", requestPublicStaff);
 

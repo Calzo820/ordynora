@@ -1,28 +1,41 @@
-const CACHE_NAME = "ordynora-shell-v2";
+const CACHE_NAME = "ordynora-shell-v3";
 const STATIC_SHELL = [
   "/offline.html",
   "/app.webmanifest",
   "/icons/ordynora-192.png",
   "/icons/ordynora-512.png",
   "/icons/ordynora-maskable-512.png",
-  "/icons/ordynora-192.png",
 ];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(STATIC_SHELL))
-      .then(() => self.skipWaiting())
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then(() => self.registration.navigationPreload?.enable())
       .then(() => self.clients.claim())
   );
 });
+
+async function fetchWithTimeout(request, timeoutMs = 7000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(request, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
@@ -32,7 +45,14 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(() => caches.match("/offline.html")));
+    event.respondWith((async () => {
+      try {
+        const preload = await event.preloadResponse;
+        return preload || await fetchWithTimeout(request);
+      } catch {
+        return caches.match("/offline.html");
+      }
+    })());
     return;
   }
 

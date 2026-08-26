@@ -372,8 +372,8 @@ async function refreshOrderPaymentStatus(tx, orderId) {
 export async function getPublicPaymentSummary(req, res) {
   try {
     const { token } = req.params;
-    const found = await prisma.order.findFirst({
-      where: { OR: [{ publicToken: token }, { id: token }] },
+    const found = await prisma.order.findUnique({
+      where: { publicToken: token },
       select: { id: true },
     });
     if (!found) return res.status(404).json({ message: "Ordine non trovato" });
@@ -450,8 +450,8 @@ export async function createPublicStripeCheckout(req, res) {
         ? "share"
         : "full";
 
-    const order = await prisma.order.findFirst({
-      where: { OR: [{ publicToken: token }, { id: token }] },
+    const order = await prisma.order.findUnique({
+      where: { publicToken: token },
       include: { table: true, restaurant: true },
     });
 
@@ -829,8 +829,8 @@ function escapeHtml(value) {
 export async function getPublicReceipt(req, res) {
   try {
     const { token } = req.params;
-    const order = await prisma.order.findFirst({
-      where: { OR: [{ publicToken: token }, { id: token }] },
+    const order = await prisma.order.findUnique({
+      where: { publicToken: token },
       include: { restaurant: true, table: true, items: true, payments: { orderBy: { createdAt: "desc" } } },
     });
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });

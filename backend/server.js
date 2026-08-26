@@ -29,6 +29,8 @@ import { handleStripeWebhook } from "./controllers/payment.controller.js";
 import prisma from "./lib/prisma.js";
 import { validateEnvironment } from "./lib/env.js";
 import { logError } from "./lib/logger.js";
+import { createRateLimiter } from "./lib/rateLimit.js";
+import { validateJsonBody } from "./middleware/validateJson.js";
 import { startBackupScheduler, stopBackupScheduler } from "./services/backup.service.js";
 import { startHealthMonitor, stopHealthMonitor } from "./services/healthMonitor.service.js";
 
@@ -47,17 +49,52 @@ function devLog(...args) {
 const app = express();
 const server = http.createServer(app);
 
+if (isProduction) app.set("trust proxy", 1);
+
+const API_PREFIXES = [
+  "/auth",
+  "/restaurants",
+  "/menu",
+  "/tables",
+  "/reservations",
+  "/orders",
+  "/payments",
+  "/cash",
+  "/print-jobs",
+  "/subscriptions",
+  "/analytics",
+  "/onboarding",
+  "/users",
+  "/logs",
+  "/demo",
+  "/system",
+  "/i18n",
+  "/api",
+];
+
+function normalizeOrigin(value) {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return String(value || "").replace(/\/$/, "");
+  }
+}
+
 const allowedOrigins = String(
   process.env.CORS_ORIGIN || "http://localhost:5173,http://localhost:4173"
 )
   .split(",")
-  .map((value) => value.trim())
+  .map((value) => normalizeOrigin(value.trim()))
   .filter(Boolean);
+
+function isAllowedOrigin(origin) {
+  return !origin || allowedOrigins.includes(normalizeOrigin(origin));
+}
 
 const io = new Server(server, {
   cors: {
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      if (isAllowedOrigin(origin)) return callback(null, true);
       return callback(new Error("Origin non consentita"));
     },
     credentials: true,
@@ -69,7 +106,7 @@ app.set("io", io);
 io.on("connection", (socket) => {
   devLog(`Socket connesso: ${socket.id}`);
 
-  const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+  const token = socket.handshake.auth?.token;
   let authenticated = false;
   if (token) {
     try {
@@ -113,28 +150,6 @@ io.on("connection", (socket) => {
   });
 });
 
-const rateStore = new Map();
-
-function createRateLimiter({ windowMs, maxRequests }) {
-  return (req, res, next) => {
-    const key = `${req.ip}:${req.path}`;
-    const now = Date.now();
-    const entry = rateStore.get(key);
-
-    if (!entry || now > entry.resetAt) {
-      rateStore.set(key, { count: 1, resetAt: now + windowMs });
-      return next();
-    }
-
-    if (entry.count >= maxRequests) {
-      return res.status(429).json({ message: "Troppe richieste, riprova tra poco" });
-    }
-
-    entry.count += 1;
-    return next();
-  };
-}
-
 app.disable("x-powered-by");
 
 app.use((req, res, next) => {
@@ -144,13 +159,24 @@ app.use((req, res, next) => {
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("X-Request-Id", requestId);
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), browsing-topics=()");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:"
+  );
+  if (isProduction) {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  if (API_PREFIXES.some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`))) {
+    res.setHeader("Cache-Control", "no-store");
+  }
   next();
 });
 
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      if (isAllowedOrigin(origin)) return callback(null, true);
       return callback(new Error("Origin non consentita"));
     },
     credentials: true,
@@ -160,25 +186,32 @@ app.use(
 app.post("/payments/webhook", express.raw({ type: "application/json" }), handleStripeWebhook);
 
 app.use(express.json({ limit: "5mb" }));
+app.use(validateJsonBody);
 
 app.use((req, _res, next) => {
   devLog(`${new Date().toISOString()} ${req.method} ${req.path}`);
   next();
 });
 
-app.use("/auth/login", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 20 }));
-app.use("/auth/pin-login", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 30 }));
-app.use("/auth/register", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 10 }));
-app.use("/auth/forgot-password", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 5 }));
-app.use("/auth/reset-password", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 10 }));
-app.use("/auth/resend-verification", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 5 }));
-app.use("/demo/ensure", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 5 }));
-app.use("/orders/public", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 40 }));
-app.use("/i18n", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 30 }));
+app.use("/auth/login", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 20, keyPrefix: "auth-login" }));
+app.use("/auth/pin-login", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 30, keyPrefix: "auth-pin" }));
+app.use("/auth/register", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 10, keyPrefix: "auth-register" }));
+app.use("/auth/forgot-password", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 5, keyPrefix: "auth-forgot" }));
+app.use("/auth/reset-password", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 10, keyPrefix: "auth-reset" }));
+app.use("/auth/resend-verification", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 5, keyPrefix: "auth-resend" }));
+app.use("/demo/ensure", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 5, keyPrefix: "demo-ensure" }));
+app.post("/orders/public", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 20, keyPrefix: "public-order-create" }));
+app.get("/orders/public/:token", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 180, keyPrefix: "public-order-status" }));
+app.post("/orders/public/:token/request-bill", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 8, keyPrefix: "public-order-bill" }));
+app.post("/orders/public/:token/call-staff", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 8, keyPrefix: "public-order-staff" }));
+app.get("/payments/public/:token/summary", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 180, keyPrefix: "public-payment-summary" }));
+app.get("/payments/public/:token/receipt", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 30, keyPrefix: "public-payment-receipt" }));
+app.post("/payments/public/:token/checkout", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 8, keyPrefix: "public-payment-checkout" }));
+app.use("/i18n", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 30, keyPrefix: "translations" }));
 
 app.get("/", (_req, res) => {
   res.json({
-    message: "Backend EasyMenu attivo",
+    message: "Backend Ordynora attivo",
     environment: envStatus.nodeEnv,
     paymentsEnabled: envStatus.paymentsEnabled,
     webhookEnabled: envStatus.webhookEnabled,
@@ -186,7 +219,7 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, service: "easymenu-backend", timestamp: new Date().toISOString() });
+  res.json({ ok: true, service: "ordynora-backend", timestamp: new Date().toISOString() });
 });
 
 app.get("/ready", async (_req, res) => {
@@ -223,11 +256,21 @@ app.use("/demo", demoRoutes);
 app.use("/system", systemRoutes);
 app.use("/i18n", translationRoutes);
 
+app.use(API_PREFIXES, (req, res, next) => {
+  const acceptsHtml = req.method === "GET" && String(req.headers.accept || "").includes("text/html");
+  if (acceptsHtml) return next();
+  res.status(404).json({ message: "Rotta API non trovata", requestId: req.requestId });
+});
+
 if (process.env.NODE_ENV === "production") {
   const staticDir = path.resolve(__dirname, "../dist");
+  app.get(["/sw.js", "/app.webmanifest"], (req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.sendFile(path.join(staticDir, req.path.slice(1)));
+  });
   app.use(express.static(staticDir, { index: false, maxAge: "1d" }));
-  app.get(/.*/, (req, res, next) => {
-    if (req.path.startsWith("/auth") || req.path.startsWith("/api")) return next();
+  app.get(/.*/, (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(staticDir, "index.html"));
   });
 }
@@ -244,7 +287,7 @@ app.use(async (error, req, res, _next) => {
     source: `${req.method} ${req.path}`,
     message: error?.message || "Unhandled backend error",
     error,
-    metadata: { requestId: res.getHeader("X-Request-Id"), query: req.query },
+    metadata: { requestId: res.getHeader("X-Request-Id") },
   });
 
   if (error?.message === "Origin non consentita") {

@@ -3052,12 +3052,38 @@ input:focus, select:focus, textarea:focus {
   white-space: nowrap;
 }
 
+.em-connection button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  padding: 5px 10px;
+  background: #0f172a;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.em-connection button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
 .em-connection--offline {
   border-color: #fecaca;
   background: #fff7f7;
 }
 
 .em-connection--offline i {
+  background: #dc2626;
+}
+
+.em-connection--failed {
+  border-color: #fca5a5;
+  background: #fff1f2;
+}
+
+.em-connection--failed i {
   background: #dc2626;
 }
 
