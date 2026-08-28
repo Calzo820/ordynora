@@ -2,10 +2,12 @@ import prisma from "../lib/prisma.js";
 import { billingBlockPayload, resolveBillingState } from "../lib/billingPolicy.js";
 import { writeAudit } from "../lib/audit.js";
 import { safeEmit } from "../lib/socketSafe.js";
+import { getTenantCached, invalidateTenantCache } from "../lib/tenantCache.js";
 
 const VALID_AREAS = ["kitchen", "bar"];
 
 function emitMenuUpdate(req, itemId, reason) {
+  invalidateTenantCache(req.user.restaurantId, "public-menu");
   safeEmit(
     req.app.get("io"),
     `restaurant:${req.user.restaurantId}`,
@@ -372,14 +374,16 @@ export const getPublicMenu = async (req, res) => {
     const billing = resolveBillingState(restaurant.subscription, restaurant);
     if (!billing.allowed) return res.status(402).json(billingBlockPayload(billing));
 
-    const items = await prisma.menuItem.findMany({
-      where: {
-        restaurantId: restaurant.id,
-        isAvailable: true,
-        isDeleted: false,
-      },
-      orderBy: [{ sortOrder: "asc" }, { category: "asc" }, { name: "asc" }],
-    });
+    const items = await getTenantCached("public-menu", restaurant.id, () =>
+      prisma.menuItem.findMany({
+        where: {
+          restaurantId: restaurant.id,
+          isAvailable: true,
+          isDeleted: false,
+        },
+        orderBy: [{ sortOrder: "asc" }, { category: "asc" }, { name: "asc" }],
+      })
+    );
 
     return res.json({
       restaurant: {

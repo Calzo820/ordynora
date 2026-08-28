@@ -72,6 +72,8 @@ model User {
   voidedItems     OrderItem[]            @relation("OrderItemVoidedBy")
   reopenedOrders  Order[]                @relation("OrderReopenedBy")
   claimedPrintJobs PrintJob[]             @relation("PrintJobClaimedBy")
+
+  @@index([restaurantId, isActive, role])
 }
 
 model UserSession {
@@ -116,6 +118,9 @@ model MenuItem {
   restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
   stockMovements StockMovement[]
+
+  @@index([restaurantId, isDeleted, isAvailable, sortOrder])
+  @@index([restaurantId, category, sortOrder])
 }
 
 model Table {
@@ -137,6 +142,7 @@ model Table {
   reservations Reservation[]
 
   @@unique([restaurantId, code])
+  @@index([restaurantId, isActive, sortOrder])
 }
 
 model Reservation {
@@ -157,6 +163,7 @@ model Reservation {
   table      Table?     @relation(fields: [tableId], references: [id], onDelete: SetNull)
 
   @@index([restaurantId, date])
+  @@index([restaurantId, status, date])
   @@index([tableId, date])
   @@index([status])
 }
@@ -177,6 +184,9 @@ model TableSession {
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   table      Table      @relation(fields: [tableId], references: [id], onDelete: Restrict)
   orders     Order[]
+
+  @@index([restaurantId, status, openedAt])
+  @@index([tableId, status, openedAt])
 }
 
 model Order {
@@ -226,6 +236,12 @@ model Order {
   reopenedByUserId        String?
 
   reopenedBy User? @relation("OrderReopenedBy", fields: [reopenedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId, createdAt])
+  @@index([restaurantId, status, closedAt, createdAt])
+  @@index([restaurantId, paymentStatus, createdAt])
+  @@index([tableId, closedAt, status, createdAt])
+  @@index([tableSessionId, status])
 }
 
 model OrderItem {
@@ -252,6 +268,9 @@ model OrderItem {
   order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
   voidedBy User?     @relation("OrderItemVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, status, preparationArea, preparationStatus])
+  @@index([menuItemId, createdAt])
 }
 
 model PaymentTransaction {
@@ -283,6 +302,7 @@ model PaymentTransaction {
   createdBy  User?      @relation("PaymentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([orderId, status, createdAt])
+  @@index([restaurantId, status, createdAt])
 }
 
 model CashClosure {
@@ -388,6 +408,8 @@ model OrderStatusHistory {
   createdAt       DateTime     @default(now())
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
 }
 
 model SaaSSubscription {
@@ -405,6 +427,8 @@ model SaaSSubscription {
   updatedAt            DateTime           @updatedAt
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([status, currentPeriodEnd])
 }
 
 model OrderCounter {
@@ -534,5 +558,6 @@ model ErrorLog {
   restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
 
   @@index([restaurantId, createdAt])
+  @@index([restaurantId, resolvedAt, createdAt])
   @@index([level, createdAt])
 }

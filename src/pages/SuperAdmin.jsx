@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar.jsx";
 import {
   apiGet,
@@ -126,6 +126,18 @@ export default function SuperAdmin() {
   const [successo, setSuccesso] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 25,
+    total: 0,
+    totalPages: 1,
+    hasPrevious: false,
+    hasNext: false,
+    from: 0,
+    to: 0,
+  });
+  const [platformSummary, setPlatformSummary] = useState(null);
   const [selected, setSelected] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [systemOverview, setSystemOverview] = useState(null);
@@ -140,20 +152,32 @@ export default function SuperAdmin() {
     tablesCount: 10,
   });
 
-  async function loadRestaurants() {
+  const loadRestaurants = useCallback(async (targetPage = page) => {
     try {
       setLoading(true);
       setErrore("");
-      const data = await apiGet("/restaurants/super-admin");
+      const params = new URLSearchParams({
+        page: String(targetPage),
+        limit: "25",
+        status: statusFilter,
+      });
+      if (query.trim()) params.set("q", query.trim());
+
+      const data = await apiGet(`/restaurants/super-admin?${params.toString()}`);
       setRestaurants(Array.isArray(data?.restaurants) ? data.restaurants : []);
+      if (data?.pagination) {
+        setPagination(data.pagination);
+        if (data.pagination.page !== targetPage) setPage(data.pagination.page);
+      }
+      if (data?.summary) setPlatformSummary(data.summary);
     } catch (error) {
       setErrore(error.message || "Errore durante il recupero ristoranti");
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, query, statusFilter]);
 
-  async function loadSystemOverview() {
+  const loadSystemOverview = useCallback(async () => {
     try {
       setMonitorLoading(true);
       const data = await apiGet("/system/overview");
@@ -163,19 +187,23 @@ export default function SuperAdmin() {
     } finally {
       setMonitorLoading(false);
     }
-  }
-
-  async function refreshPlatform() {
-    await Promise.all([loadRestaurants(), loadSystemOverview()]);
-  }
-
-  useEffect(() => {
-    refreshPlatform();
   }, []);
 
-  const stats = useMemo(
-    () =>
-      restaurants.reduce(
+  const refreshPlatform = useCallback(async () => {
+    await Promise.all([loadRestaurants(page), loadSystemOverview()]);
+  }, [loadRestaurants, loadSystemOverview, page]);
+
+  useEffect(() => {
+    loadSystemOverview();
+  }, [loadSystemOverview]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => loadRestaurants(page), 250);
+    return () => window.clearTimeout(timer);
+  }, [loadRestaurants, page]);
+
+  const stats = useMemo(() => {
+    const pageStats = restaurants.reduce(
         (acc, restaurant) => {
           acc.total += 1;
           if (isBillingUsable(restaurant)) acc.active += 1;
@@ -186,9 +214,12 @@ export default function SuperAdmin() {
           return acc;
         },
         { total: 0, active: 0, suspended: 0, tables: 0, menuItems: 0, alerts: 0 }
-      ),
-    [restaurants]
-  );
+      );
+
+    return platformSummary
+      ? { ...pageStats, ...platformSummary }
+      : pageStats;
+  }, [platformSummary, restaurants]);
 
   const filteredRestaurants = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -286,8 +317,7 @@ export default function SuperAdmin() {
       setErrore("");
       setSuccesso("");
 
-      const data = await apiPost("/restaurants/super-admin", createForm);
-      setRestaurants((prev) => [data.restaurant, ...prev]);
+      await apiPost("/restaurants/super-admin", createForm);
       setShowCreate(false);
       setCreateForm({
         name: "",
@@ -298,6 +328,8 @@ export default function SuperAdmin() {
         plan: "starter",
         tablesCount: 10,
       });
+      setPage(1);
+      await loadRestaurants(1);
       setSuccesso("Ristorante creato. Puoi aprirlo subito da Apri gestione.");
     } catch (error) {
       setErrore(error.message || "Errore creazione ristorante");
@@ -434,7 +466,7 @@ export default function SuperAdmin() {
                 Cerca, verifica owner, cambia piano o sospendi account. Per privacy non mostriamo fatturato o dati economici aggregati dei ristoranti.
               </p>
             </div>
-            <button className="superadmin-btn" onClick={loadRestaurants} disabled={loading}>
+            <button className="superadmin-btn" onClick={() => loadRestaurants(page)} disabled={loading}>
               {loading ? "Carico..." : "Aggiorna"}
             </button>
           </div>
@@ -443,14 +475,20 @@ export default function SuperAdmin() {
             <input
               className="superadmin-input"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
               placeholder="Cerca nome, slug, owner o email"
             />
 
             <select
               className="superadmin-select"
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+                setPage(1);
+              }}
             >
               <option value="all">Tutti</option>
               <option value="active">Attivi</option>
@@ -612,6 +650,33 @@ export default function SuperAdmin() {
                   })}
               </tbody>
             </table>
+          </div>
+
+          <div className="superadmin-pagination" aria-label="Paginazione ristoranti">
+            <span>
+              {pagination.total === 0
+                ? "Nessun ristorante"
+                : `Ristoranti ${pagination.from}-${pagination.to} di ${pagination.total}`}
+            </span>
+            <div>
+              <button
+                type="button"
+                className="superadmin-btn"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={loading || !pagination.hasPrevious}
+              >
+                Pagina precedente
+              </button>
+              <b>Pagina {pagination.page} di {pagination.totalPages}</b>
+              <button
+                type="button"
+                className="superadmin-btn"
+                onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}
+                disabled={loading || !pagination.hasNext}
+              >
+                Pagina successiva
+              </button>
+            </div>
           </div>
         </section>
       </main>

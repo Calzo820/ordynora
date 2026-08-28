@@ -4,6 +4,7 @@ import { writeAudit } from "../lib/audit.js";
 import { calculateBill, clampGuestCount, moneyNumber } from "../lib/billing.js";
 import { createOrderPrintJobs, preparationAreas } from "../lib/printJobs.js";
 import { safeEmit } from "../lib/socketSafe.js";
+import { invalidateTenantCache } from "../lib/tenantCache.js";
 
 function parseNumber(value, fallback = 0) {
   const n = Number(value);
@@ -408,6 +409,7 @@ export const createPublicOrder = async (req, res) => {
       return created;
     });
 
+    invalidateTenantCache(order.restaurantId, "public-menu");
     emitSocket(req, "new-order", { orderId: order.id, publicToken: order.publicToken, orderNumber: publicOrderNumber(order.orderNumber), tableName: order.table.name, tableId: order.table.id, restaurantId: order.restaurantId, restaurantName: order.restaurant.name, status: order.status, createdAt: order.createdAt });
     preparationAreas(order.items).forEach((area) => {
       emitSocket(req, "print-job", { orderId: order.id, restaurantId: order.restaurantId, area, kind: "order" });
@@ -705,6 +707,7 @@ export const updateOrderStatus = async (req, res) => {
       return result;
     });
 
+    invalidateTenantCache(order.restaurantId, "public-menu");
     emitSocket(req, "order-updated", {
       orderId: updated.id,
       tableName: updated.table?.name,
@@ -1278,6 +1281,7 @@ export const updateOrderItem = async (req, res) => {
       return { item, order: updated };
     });
 
+    invalidateTenantCache(order.restaurantId, "public-menu");
     emitSocket(req, "order-updated", {
       orderId: id,
       tableId: order.tableId,
@@ -1429,6 +1433,7 @@ export const deleteOrder = async (req, res) => {
       if (order.tableSessionId) await recalcSessionTotal(tx, order.tableSessionId);
     });
 
+    invalidateTenantCache(order.restaurantId, "public-menu");
     emitSocket(req, "order-deleted", {
       orderId: order.id,
       tableName: order.table?.name,

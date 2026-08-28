@@ -14,6 +14,7 @@ import "./styles/foundation.css";
 import "./styles/premium-final.css";
 import "./styles/responsive-hardening.css";
 import "./styles/surprise-polish.css";
+import "./styles/scale-polish.css";
 
 initPwaInstall();
 

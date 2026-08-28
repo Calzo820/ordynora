@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import prisma from "../lib/prisma.js";
 import { safeEmit } from "../lib/socketSafe.js";
+import { getTenantCached } from "../lib/tenantCache.js";
 
 function emitTableUpdate(req, table, reason) {
   safeEmit(
@@ -111,10 +112,12 @@ export const getPublicTableMenu = async (req, res) => {
     });
     if (!table) return res.status(404).json({ message: "Tavolo o ristorante non trovato" });
 
-    const items = await prisma.menuItem.findMany({
-      where: { restaurantId: table.restaurantId, isAvailable: true, isDeleted: false },
-      orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
-    });
+    const items = await getTenantCached("public-menu", table.restaurantId, () =>
+      prisma.menuItem.findMany({
+        where: { restaurantId: table.restaurantId, isAvailable: true, isDeleted: false },
+        orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+      })
+    );
 
     return res.json({
       restaurant: { id: table.restaurant.id, name: table.restaurant.name, slug: table.restaurant.slug, primaryColor: table.restaurant.primaryColor, logoUrl: table.restaurant.logoUrl || null, currency: table.restaurant.currency },

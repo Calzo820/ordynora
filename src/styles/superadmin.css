@@ -549,6 +549,159 @@
   font-weight: 750;
 }
 
+/* Console ad alta densita: resta leggibile anche con 100+ tenant. */
+.superadmin-table-wrap {
+  max-height: min(68vh, 820px);
+  overflow: auto;
+  scrollbar-gutter: stable both-edges;
+}
+
+.superadmin-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  box-shadow: 0 1px 0 #dbe4f0, 0 10px 24px rgba(15, 23, 42, .05);
+}
+
+.superadmin-table tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: 92px;
+  transition: background-color .16s ease, box-shadow .16s ease;
+}
+
+.superadmin-table tbody tr:nth-child(even) {
+  background: rgba(248, 250, 252, .64);
+}
+
+.superadmin-table tbody tr:hover {
+  background: #eff6ff;
+  box-shadow: inset 3px 0 #2563eb;
+}
+
+.superadmin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 2px 0;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.superadmin-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.superadmin-pagination b {
+  min-width: 116px;
+  text-align: center;
+  color: #0f172a;
+}
+
+@media (max-width: 760px) {
+  .superadmin-panel {
+    border-radius: 18px;
+  }
+
+  .superadmin-hero-card,
+  .superadmin-health,
+  .superadmin-monitor,
+  .superadmin-card {
+    padding: 18px;
+  }
+
+  .superadmin-table-wrap {
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .superadmin-table,
+  .superadmin-table tbody,
+  .superadmin-table tr,
+  .superadmin-table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .superadmin-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .superadmin-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .superadmin-table tbody tr {
+    padding: 8px 14px;
+    border: 1px solid #dbe4f0;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .07);
+  }
+
+  .superadmin-table tbody tr:hover {
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .07);
+  }
+
+  .superadmin-table td {
+    display: grid;
+    grid-template-columns: minmax(86px, .34fr) minmax(0, 1fr);
+    gap: 12px;
+    padding: 11px 0;
+    border-top: 1px solid #eef2f7;
+    align-items: start;
+  }
+
+  .superadmin-table td:first-child {
+    border-top: 0;
+  }
+
+  .superadmin-table td::before {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .superadmin-table td:nth-child(1)::before { content: "Ristorante"; }
+  .superadmin-table td:nth-child(2)::before { content: "Owner"; }
+  .superadmin-table td:nth-child(3)::before { content: "Billing"; }
+  .superadmin-table td:nth-child(4)::before { content: "Stato"; }
+  .superadmin-table td:nth-child(5)::before { content: "Setup"; }
+  .superadmin-table td:nth-child(6)::before { content: "Alert"; }
+  .superadmin-table td:nth-child(7)::before { content: "Azioni"; }
+
+  .superadmin-row-actions,
+  .superadmin-pagination,
+  .superadmin-pagination > div {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .superadmin-row-actions .superadmin-btn,
+  .superadmin-pagination .superadmin-btn {
+    width: 100%;
+  }
+
+  .superadmin-pagination {
+    text-align: center;
+  }
+}
+
 @media (max-width: 900px) {
   .superadmin-monitor-grid {
     grid-template-columns: 1fr;
