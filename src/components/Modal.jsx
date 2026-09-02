@@ -1,7 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 function Modal({ children, onClose, maxWidth = 900 }) {
+  const closeButtonRef = useRef(null);
+
   useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+
     function handleKeyDown(e) {
       if (e.key === "Escape") {
         onClose();
@@ -10,58 +15,37 @@ function Modal({ children, onClose, maxWidth = 900 }) {
 
     document.addEventListener("keydown", handleKeyDown);
     document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus?.();
     };
   }, [onClose]);
 
   return (
     <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15, 23, 42, 0.58)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 9999,
-        padding: 20,
-        backdropFilter: "blur(4px)",
+      className="ordy-modal-backdrop"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
       }}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth,
-          maxHeight: "90vh",
-          overflowY: "auto",
-          background: "white",
-          borderRadius: 24,
-          padding: 22,
-          boxShadow: "0 30px 60px rgba(0,0,0,0.25)",
-          position: "relative",
-        }}
+        className="ordy-modal-surface"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Finestra di dialogo"
+        style={{ "--ordy-modal-width": `${maxWidth}px` }}
       >
         <button
+          ref={closeButtonRef}
+          type="button"
+          className="ordy-modal-close"
           onClick={onClose}
-          style={{
-            position: "absolute",
-            top: 14,
-            right: 14,
-            border: "none",
-            background: "#ef4444",
-            color: "white",
-            borderRadius: 12,
-            padding: "8px 11px",
-            fontWeight: 900,
-            cursor: "pointer",
-          }}
+          aria-label="Chiudi finestra"
         >
-          ✕
+          <span aria-hidden="true">×</span>
         </button>
 
         {children}

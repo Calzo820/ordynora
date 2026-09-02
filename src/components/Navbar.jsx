@@ -109,6 +109,10 @@ export default function Navbar() {
     };
   }, [open]);
 
+  useEffect(() => {
+    setOpen(false);
+  }, [location.pathname, location.search]);
+
   const links = !logged
     ? []
     : isSuperAdmin
@@ -294,6 +298,35 @@ export default function Navbar() {
         .em-sidebar__btn--green { background: rgba(34,197,94,0.18); border-color: rgba(34,197,94,0.25); }
         .em-sidebar__btn--install { background: rgba(59,130,246,0.18); border-color: rgba(96,165,250,0.24); }
         .em-sidebar__install-help { border-radius: 14px; padding: 10px 12px; background: rgba(59,130,246,0.10); border: 1px solid rgba(96,165,250,0.18); color: #bfdbfe; font-size: 12px; line-height: 1.35; font-weight: 750; }
+        @media (min-width: 1240px) {
+          body.em-sidebar-ready,
+          body.em-sidebar-open,
+          body.em-sidebar-closed {
+            padding-left: 264px !important;
+          }
+          .em-menu-toggle,
+          .em-sidebar-backdrop {
+            display: none !important;
+          }
+          .em-sidebar {
+            width: 264px;
+            transform: translateX(0) !important;
+            box-shadow: 14px 0 42px rgba(2,6,23,0.16);
+          }
+          .em-sidebar__brand {
+            padding-left: 18px;
+          }
+          .em-sidebar__nav {
+            padding-top: 8px;
+          }
+        }
+        @media (max-height: 760px) {
+          .em-sidebar__brand { min-height: 68px; padding-top: 12px; padding-bottom: 10px; }
+          .em-sidebar__nav { padding-top: 6px; padding-bottom: 6px; }
+          .em-sidebar__link,
+          .em-sidebar__settings-toggle { min-height: 40px; }
+          .em-sidebar__footer { padding-top: 8px; }
+        }
         @media print {
           .em-menu-toggle, .em-sidebar, .em-sidebar-backdrop { display: none !important; }
         }
@@ -322,7 +355,7 @@ export default function Navbar() {
 
         <nav className="em-sidebar__nav">
           {links.map((link) => (
-            <Link key={link.to} to={link.to} onClick={handleNavigate} className={isActive(link) ? "em-sidebar__link is-active" : "em-sidebar__link"}>
+            <Link key={link.to} to={link.to} onClick={handleNavigate} aria-current={isActive(link) ? "page" : undefined} className={isActive(link) ? "em-sidebar__link is-active" : "em-sidebar__link"}>
               <span>{link.label}</span>
             </Link>
           ))}
@@ -347,7 +380,7 @@ export default function Navbar() {
                         <span>{link.label}</span>
                       </a>
                     ) : (
-                      <Link key={link.to} to={link.to} onClick={handleNavigate} className={isActive(link) ? "em-sidebar__sublink is-active" : "em-sidebar__sublink"}>
+                      <Link key={link.to} to={link.to} onClick={handleNavigate} aria-current={isActive(link) ? "page" : undefined} className={isActive(link) ? "em-sidebar__sublink is-active" : "em-sidebar__sublink"}>
                         <span>{link.label}</span>
                       </Link>
                     )

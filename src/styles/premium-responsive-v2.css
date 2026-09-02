@@ -1,0 +1,701 @@
+/* Ordynora Premium Responsive v2
+   Livello finale condiviso da console, pagine pubbliche e flussi operativi. */
+
+:root {
+  --ordy-page-gutter: clamp(14px, 2.2vw, 30px);
+  --ordy-page-width: 1600px;
+  --ordy-radius-card: 18px;
+  --ordy-radius-hero: 26px;
+  --ordy-focus: rgba(20, 184, 166, .34);
+  --ordy-elevated: 0 18px 50px rgba(15, 23, 42, .09);
+  --ordy-elevated-hover: 0 24px 64px rgba(15, 23, 42, .14);
+  --ordy-safe-top: env(safe-area-inset-top, 0px);
+  --ordy-safe-right: env(safe-area-inset-right, 0px);
+  --ordy-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ordy-safe-left: env(safe-area-inset-left, 0px);
+}
+
+html {
+  min-width: 320px;
+  background: #f3f6fa;
+  color-scheme: light;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+::selection {
+  background: rgba(20, 184, 166, .22);
+  color: #092f2b;
+}
+
+:where(main, section, article, aside, header, footer, nav, form, fieldset, div) {
+  min-width: 0;
+}
+
+:where(img, picture, video, canvas, svg) {
+  max-width: 100%;
+}
+
+:where(input, select, textarea) {
+  max-width: 100%;
+}
+
+:where(button, [role="button"], a, summary, input, select, textarea) {
+  touch-action: manipulation;
+}
+
+:where(button, a, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--ordy-focus) !important;
+  outline-offset: 3px !important;
+}
+
+:where(button, input, select, textarea):disabled {
+  opacity: .58;
+}
+
+:where(.app-shell, .em-page, .management-os, .dash-os-shell, .operator-workspace,
+  .tables-calendar-page, .superadmin-main, .onb-shell, .commercial-impact-page,
+  .integrations-os, .contact-shell, .legal-page, .demo-page) {
+  max-width: var(--ordy-page-width);
+}
+
+:where(.section-card, .management-card, .dashboard-card, .dash-panel,
+  .metric-card, .commercial-panel, .commercial-card, .contact-card,
+  .billing-chain-card, .settings-card, .onb-card, .superadmin-panel,
+  .hc-list-panel, .hc-detail-panel, .kds-ticket, .tables-agenda-shell,
+  .tables-day-summary, .table-booking-panel) {
+  min-width: 0;
+}
+
+:where(.section-card, .management-card, .dashboard-card, .dash-panel,
+  .metric-card, .commercial-panel, .commercial-card, .contact-card,
+  .billing-chain-card, .settings-card, .onb-card, .superadmin-panel) {
+  border-color: rgba(210, 222, 229, .92) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(.management-btn, .em-btn, .action-btn, .landing-primary,
+    .landing-secondary, .demo-primary, .superadmin-btn):not(:disabled) {
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease;
+  }
+
+  :where(.management-btn, .em-btn, .action-btn, .landing-primary,
+    .landing-secondary, .demo-primary, .superadmin-btn):not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* Modal condivisa: centrata su PC, pannello sicuro su schermi piccoli. */
+.ordy-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: max(18px, var(--ordy-safe-top)) max(18px, var(--ordy-safe-right)) max(18px, var(--ordy-safe-bottom)) max(18px, var(--ordy-safe-left));
+  background: rgba(3, 12, 20, .64);
+  backdrop-filter: blur(9px);
+  animation: ordy-modal-in .16s ease-out;
+}
+
+.ordy-modal-surface {
+  position: relative;
+  width: min(100%, var(--ordy-modal-width, 900px));
+  max-height: min(90vh, 900px);
+  max-height: min(90dvh, 900px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 26px;
+  border: 1px solid rgba(255, 255, 255, .82);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 34px 90px rgba(2, 8, 23, .34);
+}
+
+.ordy-modal-close {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  float: right;
+  width: 42px;
+  height: 42px;
+  margin: -10px -10px 4px 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dbe4e9;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .96);
+  color: #17211f;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+  font-size: 25px;
+  line-height: 1;
+}
+
+@keyframes ordy-modal-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Tabelle e contenuti lunghi non devono allargare la viewport. */
+:where(.section-card, .management-card, .superadmin-table-wrap,
+  .hc-list-panel, .cash-close-panel, .onb-preview-scroll) {
+  overflow-wrap: anywhere;
+}
+
+:where(.section-card, .management-card) > table {
+  width: 100%;
+}
+
+.superadmin-table-wrap,
+.onb-preview-scroll,
+.tables-reservation-filters,
+.management-tabs,
+.demo-tabs,
+.hc-tabs {
+  scrollbar-width: thin;
+  scrollbar-color: #b8c6cc transparent;
+}
+
+/* Tablet e laptop compatti: il menu diventa drawer e il contenuto gli lascia spazio. */
+@media (max-width: 1239px) {
+  body.em-sidebar-ready :where(.app-shell, .em-page, .management-os,
+    .dash-os-shell, .operator-workspace, .tables-calendar-page,
+    .superadmin-main, .onb-shell, .commercial-impact-page, .integrations-os) {
+    padding-top: max(72px, calc(var(--ordy-safe-top) + 62px)) !important;
+  }
+
+  .growth-grid,
+  .growth-grid-three,
+  .integrations-layout,
+  .commercial-grid.two,
+  .commercial-grid.three,
+  .commercial-playbook,
+  .settings-os-grid,
+  .tables-calendar-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .settings-brand-panel,
+  .integration-detail,
+  .table-booking-panel {
+    position: static !important;
+    max-height: none !important;
+  }
+
+  .billing-status-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .billing-status-strip > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .billing-connect-card {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  .billing-connect-actions {
+    grid-column: 1 / -1;
+  }
+
+  .superadmin-modal,
+  .onb-qr-modal {
+    width: min(920px, calc(100vw - 32px)) !important;
+  }
+}
+
+/* Tablet verticale e telefoni grandi. */
+@media (max-width: 900px) {
+  :root {
+    --ordy-radius-card: 16px;
+    --ordy-radius-hero: 22px;
+  }
+
+  :where(.app-shell, .em-page, .management-os, .dash-os-shell,
+    .operator-workspace, .tables-calendar-page, .superadmin-main,
+    .onb-shell, .commercial-impact-page, .integrations-os,
+    .contact-shell, .legal-page, .demo-page) {
+    width: min(100%, calc(100vw - 24px)) !important;
+    margin-inline: auto !important;
+  }
+
+  :where(.glass-hero, .management-hero-main, .dash-hero-pro,
+    .dashboard-hero, .billing-hero, .commercial-hero, .contact-hero,
+    .legal-hero, .demo-hero, .onb-hero, .superadmin-hero-card,
+    .hc-hero, .kds-topbar, .pos-topbar) {
+    border-radius: var(--ordy-radius-hero) !important;
+  }
+
+  .auth-layout,
+  .landing-hero-grid,
+  .demo-split,
+  .commercial-hero,
+  .integrations-layout,
+  .settings-os-grid,
+  .hc-layout,
+  .pos-layout,
+  .tables-agenda-shell,
+  .tables-calendar-layout,
+  .superadmin-hero,
+  .superadmin-monitor-grid,
+  .onb-hero,
+  .onb-service-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .auth-intro {
+    min-height: auto !important;
+  }
+
+  .auth-form-card {
+    width: 100% !important;
+  }
+
+  .landing-grid-4,
+  .landing-pricing-grid,
+  .demo-menu-grid,
+  .demo-orders-grid,
+  .commercial-metrics,
+  .superadmin-stats,
+  .management-stats,
+  .dash-kpi-grid,
+  .dash-service-strip,
+  .report-insight-grid--four,
+  .cash-close-kpis,
+  .settings-card-grid,
+  .onb-print-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .growth-grid,
+  .growth-grid-three {
+    grid-template-columns: 1fr !important;
+  }
+
+  .landing-nav,
+  .legal-nav,
+  .demo-topbar,
+  .commercial-toolbar,
+  .management-section-head,
+  .superadmin-card-header,
+  .tables-day-summary__head,
+  .cash-close-panel__head {
+    align-items: stretch !important;
+  }
+
+  .management-section-head,
+  .superadmin-card-header {
+    gap: 12px !important;
+  }
+
+  .billing-connect-card,
+  .billing-status-strip,
+  .billing-chain-card {
+    grid-template-columns: 1fr !important;
+  }
+
+  .billing-status-strip > :last-child,
+  .billing-connect-actions {
+    grid-column: auto;
+  }
+
+  .billing-connect-actions,
+  .billing-connect-actions > *,
+  .billing-status-strip > :last-child,
+  .billing-status-strip > :last-child > *,
+  .billing-chain-card > a {
+    width: 100% !important;
+  }
+
+  .billing-plans-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .superadmin-modal-backdrop,
+  .onb-modal-backdrop {
+    padding: 12px !important;
+  }
+
+  .superadmin-modal,
+  .onb-qr-modal {
+    max-height: calc(100dvh - 24px) !important;
+    overflow: auto !important;
+  }
+
+  .cm-cart-detail,
+  .cm-confirmation,
+  .pos-drawer,
+  .table-booking-panel {
+    max-height: none !important;
+  }
+
+  .em-page-header,
+  .em-page-hero {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .em-toolbar__actions,
+  .em-page-hero-side {
+    width: 100%;
+  }
+}
+
+/* Smartphone. */
+@media (max-width: 680px) {
+  :root {
+    --ordy-page-gutter: 12px;
+    --ordy-radius-card: 14px;
+    --ordy-radius-hero: 18px;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 6% 0%, rgba(37, 99, 235, .055), transparent 20rem),
+      #f3f6fa;
+  }
+
+  :where(.app-shell, .em-page, .management-os, .dash-os-shell,
+    .operator-workspace, .tables-calendar-page, .superadmin-main,
+    .onb-shell, .commercial-impact-page, .integrations-os,
+    .contact-shell, .legal-page, .demo-page) {
+    width: min(100%, calc(100vw - 16px)) !important;
+  }
+
+  body.em-sidebar-ready :where(.app-shell, .em-page, .management-os,
+    .dash-os-shell, .operator-workspace, .tables-calendar-page,
+    .superadmin-main, .onb-shell, .commercial-impact-page, .integrations-os) {
+    padding-top: max(68px, calc(var(--ordy-safe-top) + 58px)) !important;
+  }
+
+  h1,
+  .auth-title,
+  .management-hero-title,
+  .landing-hero h1,
+  .demo-hero h1,
+  .commercial-hero h1,
+  .superadmin-title,
+  .onb-hero h1 {
+    font-size: clamp(30px, 10vw, 42px) !important;
+    line-height: 1 !important;
+    letter-spacing: -.045em !important;
+  }
+
+  h2,
+  .management-title,
+  .panel-title,
+  .superadmin-card-title {
+    overflow-wrap: anywhere;
+  }
+
+  :where(.section-card, .management-card, .dashboard-card, .dash-panel,
+    .metric-card, .commercial-panel, .commercial-card, .contact-card,
+    .billing-chain-card, .settings-card, .onb-card, .superadmin-panel,
+    .hc-list-panel, .hc-detail-panel, .kds-ticket, .tables-agenda-shell,
+    .tables-day-summary, .table-booking-panel) {
+    border-radius: var(--ordy-radius-card) !important;
+  }
+
+  :where(.glass-hero, .management-hero-main, .dash-hero-pro,
+    .dashboard-hero, .billing-hero, .commercial-hero, .contact-hero,
+    .legal-hero, .demo-hero, .onb-hero, .superadmin-hero-card,
+    .hc-hero, .kds-topbar, .pos-topbar) {
+    padding: 18px !important;
+  }
+
+  .landing-nav,
+  .legal-nav,
+  .demo-topbar,
+  .commercial-toolbar,
+  .management-section-head,
+  .superadmin-card-header,
+  .tables-day-summary__head,
+  .cash-close-panel__head,
+  .onb-modal-head,
+  .onb-staff-strip,
+  .contact-note,
+  .em-page-header,
+  .em-page-hero {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .landing-nav-actions,
+  .demo-actions,
+  .legal-nav > div,
+  .superadmin-actions,
+  .pos-topbar__actions,
+  .cash-close-actions,
+  .onb-actions,
+  .onb-modal-actions,
+  .table-booking-actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+  }
+
+  .landing-nav-actions > *,
+  .demo-actions > *,
+  .superadmin-actions > *,
+  .pos-topbar__actions > *,
+  .cash-close-actions > *,
+  .onb-actions > *,
+  .onb-modal-actions > *,
+  .table-booking-actions > * {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .landing-grid-4,
+  .landing-pricing-grid,
+  .demo-menu-grid,
+  .demo-orders-grid,
+  .commercial-metrics,
+  .superadmin-stats,
+  .management-stats,
+  .dash-kpi-grid,
+  .dash-service-strip,
+  .report-insight-grid--four,
+  .cash-close-kpis,
+  .settings-card-grid,
+  .settings-card-grid.two,
+  .onb-print-options,
+  .billing-plans-grid,
+  .contact-grid,
+  .legal-sections,
+  .advisor-grid,
+  .report-simple-grid,
+  .integrations-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .management-grid-2,
+  .menu-health-metrics,
+  .menu-action-board,
+  .menu-editor-grid,
+  .management-form-grid,
+  .superadmin-form-grid,
+  .cash-close-form,
+  .pos-form-grid,
+  .pos-bill-setup__fields,
+  .pos-bill-options,
+  .pos-payment-grid,
+  .pos-mixed-grid,
+  .pos-extra-row,
+  .pos-main-actions,
+  .table-booking-form__row,
+  .onb-form-row,
+  .onb-form-row.two,
+  .onb-logo-card,
+  .commercial-hour-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .management-toolbar,
+  .management-inline-tools,
+  .superadmin-toolbar,
+  .hc-searchbar,
+  .kds-topbar__tools,
+  .tables-day-tools,
+  .tables-calendar-toolbar form {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+  }
+
+  .management-toolbar > *,
+  .management-inline-tools > *,
+  .superadmin-toolbar > *,
+  .hc-searchbar > *,
+  .kds-topbar__tools > *,
+  .tables-day-tools > *,
+  .tables-calendar-toolbar form > * {
+    width: 100% !important;
+  }
+
+  .management-tabs,
+  .demo-tabs,
+  .hc-tabs,
+  .tables-reservation-filters,
+  .cm-categories {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .management-tabs > *,
+  .demo-tabs > *,
+  .hc-tabs > *,
+  .tables-reservation-filters > *,
+  .cm-categories > * {
+    flex: 0 0 auto !important;
+    scroll-snap-align: start;
+  }
+
+  .superadmin-pagination,
+  .superadmin-pagination > div {
+    align-items: stretch !important;
+    flex-direction: column !important;
+    width: 100%;
+  }
+
+  .superadmin-pagination button {
+    width: 100%;
+  }
+
+  .em-table-grid--cash,
+  .tables-compact-grid,
+  .dash-table-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .kds-topbar__stats,
+  .pos-topbar__stats,
+  .tables-day-metrics,
+  .demo-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .kds-ticket__actions,
+  .pos-item-action-buttons,
+  .cm-confirm-actions,
+  .cm-payment-summary,
+  .cm-payment-split > div {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+  }
+
+  .kds-ticket__actions > *,
+  .pos-item-action-buttons > *,
+  .cm-confirm-actions > *,
+  .cm-payment-summary > *,
+  .cm-payment-split > div > * {
+    width: 100% !important;
+  }
+
+  .auth-page,
+  .auth-action-page,
+  .staff-access-page,
+  .em-not-found-page {
+    padding-inline: 12px !important;
+  }
+
+  .auth-shell,
+  .auth-layout {
+    width: 100% !important;
+  }
+
+  .auth-intro,
+  .auth-form-card,
+  .auth-action-card,
+  .staff-access-intro,
+  .staff-access-form,
+  .staff-access-resume,
+  .em-not-found {
+    padding: 22px !important;
+    border-radius: 20px !important;
+  }
+
+  .ordy-modal-backdrop {
+    place-items: end center;
+    padding: max(8px, var(--ordy-safe-top)) max(8px, var(--ordy-safe-right)) max(8px, var(--ordy-safe-bottom)) max(8px, var(--ordy-safe-left));
+  }
+
+  .ordy-modal-surface {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+    padding: 20px 16px calc(18px + var(--ordy-safe-bottom));
+    border-radius: 22px 22px 14px 14px;
+  }
+
+  .ordy-modal-close {
+    margin-right: 0;
+  }
+
+  :where(button, [role="button"], input, select) {
+    min-height: 44px;
+  }
+
+  textarea {
+    min-height: 96px;
+  }
+}
+
+@media (max-width: 420px) {
+  .kds-topbar__stats,
+  .pos-topbar__stats,
+  .tables-day-metrics,
+  .demo-kpis {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cm-product-image {
+    min-height: 160px !important;
+  }
+
+  .em-menu-toggle {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 13px !important;
+  }
+
+  .em-sidebar {
+    width: min(320px, calc(100vw - 16px)) !important;
+  }
+
+  .commercial-score-card strong {
+    font-size: 58px !important;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) and (pointer: coarse) {
+  body.em-sidebar-ready :where(.app-shell, .em-page, .management-os,
+    .dash-os-shell, .operator-workspace, .tables-calendar-page,
+    .superadmin-main, .onb-shell) {
+    padding-top: 62px !important;
+  }
+
+  .em-sidebar {
+    width: min(420px, 72vw) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ordy-modal-backdrop {
+    animation: none;
+  }
+}
+
+@media print {
+  .ordy-modal-backdrop,
+  .em-menu-toggle,
+  .em-sidebar,
+  .em-sidebar-backdrop {
+    display: none !important;
+  }
+
+  body {
+    padding-left: 0 !important;
+    background: #fff !important;
+  }
+}
