@@ -162,6 +162,9 @@ export const updateUser = async (req, res) => {
       const role = String(req.body.role || "").trim().toLowerCase();
       if (!ALLOWED_ROLES.has(role)) return res.status(400).json({ message: "Ruolo non valido" });
       if (!canManageRole(req.user.role, role)) return res.status(403).json({ message: "Non puoi assegnare questo ruolo" });
+      if (user.isPinOnly && !PIN_ROLES.has(role)) {
+        return res.status(400).json({ message: "Un utente con solo PIN deve mantenere un ruolo staff compatibile" });
+      }
       data.role = role;
     }
 
@@ -195,13 +198,31 @@ export const updateUser = async (req, res) => {
       }
     }
 
+    const securityChanged = Boolean(
+      (data.role && data.role !== user.role)
+      || data.isActive === false
+      || (data.email && data.email !== user.email)
+      || data.passwordHash
+      || data.pinHash
+      || data.pinEnabled === false
+    );
+
     const updated = await prisma.$transaction(async (tx) => {
       const result = await tx.user.update({ where: { id }, data });
+      if (securityChanged) {
+        await tx.userSession.updateMany({
+          where: { userId: id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
       await writeAudit(tx, req, {
         action: "staff.updated",
         entityType: "user",
         entityId: id,
-        metadata: { changedFields: Object.keys(data).filter((field) => field !== "passwordHash" && field !== "pinHash") },
+        metadata: {
+          changedFields: Object.keys(data).filter((field) => field !== "passwordHash" && field !== "pinHash"),
+          sessionsRevoked: securityChanged,
+        },
       });
       return result;
     });

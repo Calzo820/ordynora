@@ -164,6 +164,8 @@ export default function AdminPanel({ embedded = false } = {}) {
   const [stockHistory, setStockHistory] = useState([]);
   const [tableForm, setTableForm] = useState(emptyTable);
   const [userForm, setUserForm] = useState(emptyUser);
+  const [editingUserId, setEditingUserId] = useState("");
+  const [userAccessForm, setUserAccessForm] = useState({ role: "waiter", pin: "" });
 
   async function loadData() {
     try {
@@ -508,6 +510,39 @@ export default function AdminPanel({ embedded = false } = {}) {
     }
   }
 
+  function startUserAccessEdit(user) {
+    setEditingUserId(user.id);
+    setUserAccessForm({ role: user.role, pin: "" });
+    setError("");
+    setSuccess("");
+  }
+
+  async function saveUserAccess(user) {
+    const nextPin = userAccessForm.pin.trim();
+    if (nextPin && !/^\d{4,6}$/.test(nextPin)) {
+      setError("Il nuovo PIN deve contenere da 4 a 6 numeri.");
+      return;
+    }
+
+    try {
+      setSavingUser(true);
+      setError("");
+      setSuccess("");
+      await apiPatch(`/users/${user.id}`, {
+        role: userAccessForm.role,
+        ...(nextPin ? { pin: nextPin } : {}),
+      });
+      setEditingUserId("");
+      setUserAccessForm({ role: "waiter", pin: "" });
+      setSuccess("Accesso aggiornato. Dopo un cambio di ruolo o PIN, l'utente dovrà autenticarsi di nuovo.");
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Errore aggiornamento ruolo");
+    } finally {
+      setSavingUser(false);
+    }
+  }
+
   async function deleteUser(user) {
     if (!window.confirm(`Eliminare l'accesso di ${user.name || user.email}?`)) return;
     try {
@@ -842,9 +877,41 @@ export default function AdminPanel({ embedded = false } = {}) {
                 </div>
                 <div className="management-row" style={{ justifyContent: "flex-end" }}>
                   <span className={`management-badge ${user.isActive ? "green" : "red"}`}>{user.isActive ? "Attivo" : "Disattivo"}</span>
-                  <button className="management-btn secondary" type="button" onClick={() => toggleUser(user)}>{user.isActive ? "Disattiva" : "Riattiva"}</button>
-                  <button className="management-btn danger" type="button" onClick={() => deleteUser(user)}>Elimina</button>
+                  {user.role === "owner" ? (
+                    <span className="management-badge gray">Titolare</span>
+                  ) : (
+                    <>
+                      <button className="management-btn secondary" type="button" onClick={() => startUserAccessEdit(user)}>Ruolo e accesso</button>
+                      <button className="management-btn secondary" type="button" onClick={() => toggleUser(user)}>{user.isActive ? "Disattiva" : "Riattiva"}</button>
+                      <button className="management-btn danger" type="button" onClick={() => deleteUser(user)}>Elimina</button>
+                    </>
+                  )}
                 </div>
+                {editingUserId === user.id ? (
+                  <div className="staff-role-editor">
+                    <label>
+                      Ruolo
+                      <select value={userAccessForm.role} onChange={(event) => setUserAccessForm((prev) => ({ ...prev, role: event.target.value }))}>
+                        <option value="kitchen">Cucina</option>
+                        <option value="bar">Bar</option>
+                        <option value="waiter">Sala / cameriere</option>
+                        <option value="cashier">Cassa</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </label>
+                    {user.isPinOnly ? (
+                      <label>
+                        Nuovo PIN (facoltativo)
+                        <input type="password" inputMode="numeric" minLength="4" maxLength="6" placeholder="Lascia vuoto per non cambiarlo" value={userAccessForm.pin} onChange={(event) => setUserAccessForm((prev) => ({ ...prev, pin: event.target.value.replace(/\D/g, "").slice(0, 6) }))} />
+                      </label>
+                    ) : null}
+                    <div>
+                      <button className="management-btn" type="button" disabled={savingUser} onClick={() => saveUserAccess(user)}>{savingUser ? "Salvataggio..." : "Salva accesso"}</button>
+                      <button className="management-btn secondary" type="button" disabled={savingUser} onClick={() => setEditingUserId("")}>Annulla</button>
+                    </div>
+                    <small>Se cambi ruolo o PIN, Ordynora disconnette le sessioni precedenti di questo utente.</small>
+                  </div>
+                ) : null}
               </div>
             ))}
             {staffUsers.length === 0 ? <div className="management-subtitle">Nessun utente staff creato.</div> : null}

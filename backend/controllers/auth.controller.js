@@ -6,6 +6,7 @@ import { sendEmailVerification, sendPasswordReset } from "../lib/mailer.js";
 import {
   createRefreshToken,
   getRefreshCookieOptions,
+  getSessionDays,
   getSessionExpiry,
   hashToken,
   readCookie,
@@ -96,21 +97,30 @@ function sanitizeRestaurant(restaurant) {
   };
 }
 
-async function issueSession(res, req, user) {
+async function issueSession(res, req, user, { days = getSessionDays(process.env.SESSION_DAYS), persistent = true } = {}) {
   if (!prisma.userSession?.create) return;
 
   const refreshToken = createRefreshToken();
+  await prisma.userSession.deleteMany({
+    where: {
+      userId: user.id,
+      OR: [
+        { expiresAt: { lt: new Date() } },
+        { revokedAt: { not: null } },
+      ],
+    },
+  });
   await prisma.userSession.create({
     data: {
       userId: user.id,
       tokenHash: hashToken(refreshToken),
       userAgent: req.get("user-agent") || null,
       ipAddress: req.ip || null,
-      expiresAt: getSessionExpiry(),
+      expiresAt: getSessionExpiry(days),
     },
   });
 
-  res.cookie("refresh_token", refreshToken, getRefreshCookieOptions());
+  res.cookie("refresh_token", refreshToken, getRefreshCookieOptions({ days, persistent }));
 }
 
 function clearRefreshCookie(res) {
@@ -273,6 +283,7 @@ export const loginWithPin = async (req, res) => {
   try {
     const restaurantCode = buildSlug(req.body?.restaurantCode || req.body?.restaurantSlug);
     const pin = String(req.body?.pin || "").trim();
+    const rememberDevice = req.body?.rememberDevice !== false;
     if (!restaurantCode || !/^\d{4,6}$/.test(pin)) {
       return res.status(400).json({ message: "Inserisci il codice ristorante e un PIN da 4 a 6 numeri" });
     }
@@ -317,12 +328,17 @@ export const loginWithPin = async (req, res) => {
     ]);
 
     const token = signToken(user);
-    await issueSession(res, req, user);
+    const sessionDays = rememberDevice
+      ? getSessionDays(process.env.STAFF_SESSION_DAYS, 90)
+      : 1;
+    await issueSession(res, req, user, { days: sessionDays, persistent: rememberDevice });
     return res.json({
       message: "Accesso staff effettuato",
       token,
       user: sanitizeUser(user),
       restaurant: sanitizeRestaurant(restaurant),
+      remembered: rememberDevice,
+      sessionDays,
     });
   } catch (error) {
     console.error("loginWithPin error:", error);

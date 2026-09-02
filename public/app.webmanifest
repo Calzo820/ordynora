@@ -3,6 +3,7 @@
   "short_name": "Ordynora",
   "description": "Sala, cucina, bar e cassa del tuo ristorante.",
   "lang": "it",
+  "id": "/staff",
   "start_url": "/staff",
   "scope": "/",
   "display": "standalone",
@@ -39,9 +40,27 @@
       "icons": [{ "src": "/icons/ordynora-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Accesso titolare",
-      "short_name": "Titolare",
-      "url": "/login",
+      "name": "Sala e tavoli",
+      "short_name": "Sala",
+      "url": "/tavoli",
+      "icons": [{ "src": "/icons/ordynora-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Comande cucina",
+      "short_name": "Cucina",
+      "url": "/cucina",
+      "icons": [{ "src": "/icons/ordynora-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Comande bar",
+      "short_name": "Bar",
+      "url": "/bar",
+      "icons": [{ "src": "/icons/ordynora-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cassa",
+      "short_name": "Cassa",
+      "url": "/cassa",
       "icons": [{ "src": "/icons/ordynora-192.png", "sizes": "192x192" }]
     }
   ]

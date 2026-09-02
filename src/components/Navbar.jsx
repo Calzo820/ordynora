@@ -4,6 +4,7 @@ import usePwaInstall from "../hooks/usePwaInstall";
 import { ORDYNORA_LOGO_URL as logoOrdynora } from "../lib/brand";
 import { getRoleLabel, isAdminRole, isSuperAdminUser, normalizeRole } from "../lib/roles";
 import { logoutSession } from "../lib/session";
+import { isPinStaffUser } from "../lib/staffDevice";
 
 function getRistoranteAttivo() {
   return localStorage.getItem("ristorante_attivo") || "";
@@ -44,10 +45,10 @@ function restorePlatformSession() {
   }
 }
 
-async function logout() {
+async function logout(destination = "/login") {
   await logoutSession();
   localStorage.removeItem("superadmin_platform_session");
-  window.location.href = "/login";
+  window.location.href = destination;
 }
 
 function initials(user) {
@@ -64,6 +65,7 @@ export default function Navbar() {
   const location = useLocation();
   const user = getUser();
   const role = normalizeRole(user?.role);
+  const staffDevice = isPinStaffUser(user);
   const logged = isLoggedIn();
   const isSuperAdmin = isSuperAdminUser(user) || location.pathname.startsWith("/super-admin");
   const impersonating = hasPlatformSession() && !isSuperAdmin;
@@ -184,17 +186,22 @@ export default function Navbar() {
           top: 14px;
           left: 14px;
           z-index: 1202;
-          width: 46px;
+          width: auto;
+          min-width: 46px;
           height: 46px;
           border-radius: 15px;
           border: 1px solid rgba(15,23,42,0.13);
           background: rgba(255,255,255,0.96);
           color: #0f172a;
           box-shadow: 0 16px 34px rgba(15,23,42,0.18);
-          display: grid;
+          display: inline-grid;
+          grid-auto-flow: column;
+          gap: 9px;
           place-items: center;
+          padding: 0 14px;
           cursor: pointer;
         }
+        .em-menu-toggle__label { font-size: 13px; font-weight: 950; letter-spacing: -0.01em; }
         .em-menu-glyph,
         .em-menu-glyph::before,
         .em-menu-glyph::after {
@@ -341,6 +348,7 @@ export default function Navbar() {
         onClick={() => setOpen((prev) => !prev)}
       >
         <span className={open ? "em-menu-glyph is-close" : "em-menu-glyph"} aria-hidden="true" />
+        <span className="em-menu-toggle__label">Ordynora</span>
       </button>
       <div className={open ? "em-sidebar-backdrop is-open" : "em-sidebar-backdrop"} onClick={() => setOpen(false)} aria-hidden="true" />
 
@@ -403,7 +411,9 @@ export default function Navbar() {
             {!pwa.installed ? <button className="em-sidebar__btn em-sidebar__btn--install" type="button" onClick={handleInstallClick}>{pwa.canPrompt ? "Installa app" : "Guida installazione"}</button> : null}
             {installMessage ? <div className="em-sidebar__install-help">{installMessage}</div> : null}
             {impersonating ? <button className="em-sidebar__btn em-sidebar__btn--green" onClick={restorePlatformSession}>SuperAdmin</button> : null}
-            <button className="em-sidebar__btn" onClick={logout}>Esci</button>
+            <button className="em-sidebar__btn" onClick={() => logout(staffDevice ? "/staff" : "/login")}>
+              {staffDevice ? "Cambia operatore" : "Esci"}
+            </button>
           </div>
         </div>
       </aside>

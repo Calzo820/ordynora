@@ -2,13 +2,19 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import usePwaInstall from "../hooks/usePwaInstall";
 
-const APP_PATHS = ["/", "/demo", "/register", "/staff", "/login", "/dashboard", "/cucina", "/bar", "/cassa", "/tavoli", "/admin", "/qr", "/billing"];
+const APP_PATHS = ["/demo", "/register", "/login", "/dashboard", "/cucina", "/bar", "/cassa", "/tavoli", "/admin", "/qr", "/billing"];
 const DISMISS_KEY = "ordynora_install_banner_dismissed";
+const DISMISS_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
+
+function isRecentlyDismissed() {
+  const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) || 0);
+  return dismissedAt > Date.now() - DISMISS_DURATION_MS;
+}
 
 export default function AppInstallPrompt() {
   const location = useLocation();
   const pwa = usePwaInstall();
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === "1");
+  const [dismissed, setDismissed] = useState(isRecentlyDismissed);
   const [manualHelp, setManualHelp] = useState(false);
 
   useEffect(() => {
@@ -22,7 +28,9 @@ export default function AppInstallPrompt() {
     return () => window.removeEventListener("ordynora:show-install-banner", handleReopen);
   }, []);
 
-  const relevantPath = APP_PATHS.some((path) => location.pathname.startsWith(path));
+  const relevantPath = location.pathname === "/"
+    || APP_PATHS.some((path) => location.pathname.startsWith(path));
+  if (location.pathname.startsWith("/staff")) return null;
   if (!relevantPath || pwa.installed || dismissed || !pwa.available) return null;
 
   async function install() {
@@ -33,7 +41,7 @@ export default function AppInstallPrompt() {
   }
 
   function dismiss() {
-    localStorage.setItem(DISMISS_KEY, "1");
+    localStorage.setItem(DISMISS_KEY, String(Date.now()));
     setDismissed(true);
   }
 

@@ -16,6 +16,7 @@ import "./styles/responsive-hardening.css";
 import "./styles/surprise-polish.css";
 import "./styles/scale-polish.css";
 import "./styles/premium-responsive-v2.css";
+import "./styles/mobile-experience-v3.css";
 
 initPwaInstall();
 

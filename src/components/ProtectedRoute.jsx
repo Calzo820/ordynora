@@ -3,10 +3,25 @@ import { Navigate } from "react-router-dom";
 import { apiGet, clearAuthSession, getAuthToken } from "../lib/api";
 import ServiceUnavailable from "../pages/ServiceUnavailable.jsx";
 import { canAccessRole, getHomePathByRole, normalizeRole } from "../lib/roles";
+import { persistLoginPayload, refreshSession } from "../lib/session";
+import { getRememberedRestaurantCode, isPinStaffUser } from "../lib/staffDevice";
+
+function getStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem("auth_user") || "null");
+  } catch {
+    return null;
+  }
+}
 
 function ProtectedRoute({ children, roles = [] }) {
-  const token = getAuthToken();
-  const [state, setState] = useState({ loading: true, allowed: false, user: null, serviceError: "" });
+  const [state, setState] = useState({
+    loading: true,
+    allowed: false,
+    user: null,
+    serviceError: "",
+    loginPath: "/login",
+  });
 
   const normalizedRoles = useMemo(() => roles.map(normalizeRole), [roles]);
 
@@ -14,37 +29,31 @@ function ProtectedRoute({ children, roles = [] }) {
     let active = true;
 
     async function verify() {
-      if (!token) {
-        if (active) setState({ loading: false, allowed: false, user: null, serviceError: "" });
-        return;
-      }
+      const cachedUser = getStoredUser();
+      const loginPath = isPinStaffUser(cachedUser) || getRememberedRestaurantCode()
+        ? "/staff"
+        : "/login";
 
       try {
-        const data = await apiGet("/auth/me");
+        const data = getAuthToken() ? await apiGet("/auth/me") : await refreshSession();
         const user = data?.user || null;
 
         if (!user) throw new Error("Sessione non valida");
 
-        localStorage.setItem("auth_user", JSON.stringify(user));
-        if (data?.restaurant) {
-          localStorage.setItem("auth_restaurant", JSON.stringify(data.restaurant));
-          localStorage.setItem("ristorante_attivo", data.restaurant.name || "");
-          localStorage.setItem("restaurant_slug", data.restaurant.slug || "");
-          localStorage.setItem("restaurant_id", data.restaurant.id || "");
-        }
+        persistLoginPayload(data);
 
         const allowed = canAccessRole(normalizedRoles, user);
-        if (active) setState({ loading: false, allowed, user, serviceError: "" });
+        if (active) setState({ loading: false, allowed, user, serviceError: "", loginPath });
       } catch (error) {
         const message = error?.message || "";
         const temporaryFailure =
           /server.*(?:avvio|temporaneamente)|si sta avviando|non raggiungibile|connessione lenta|riprova tra qualche secondo/i.test(message);
         if (temporaryFailure) {
-          if (active) setState({ loading: false, allowed: false, user: null, serviceError: message });
+          if (active) setState({ loading: false, allowed: false, user: null, serviceError: message, loginPath });
           return;
         }
         clearAuthSession();
-        if (active) setState({ loading: false, allowed: false, user: null, serviceError: "" });
+        if (active) setState({ loading: false, allowed: false, user: null, serviceError: "", loginPath });
       }
     }
 
@@ -52,9 +61,7 @@ function ProtectedRoute({ children, roles = [] }) {
     return () => {
       active = false;
     };
-  }, [token, normalizedRoles]);
-
-  if (!token) return <Navigate to="/login" replace />;
+  }, [normalizedRoles]);
 
   if (state.serviceError) return <ServiceUnavailable message={state.serviceError} />;
 
@@ -66,7 +73,12 @@ function ProtectedRoute({ children, roles = [] }) {
     );
   }
 
-  if (!state.allowed) return <Navigate to={getHomePathByRole(state.user?.role, state.user)} replace />;
+  if (!state.allowed) {
+    const destination = state.user
+      ? getHomePathByRole(state.user.role, state.user)
+      : state.loginPath;
+    return <Navigate to={destination} replace />;
+  }
 
   return children;
 }
