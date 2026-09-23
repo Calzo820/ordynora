@@ -102,15 +102,21 @@ export default function HighVolumeCashDesk({
     <main className="hc-cashdesk">
       <section className="hc-hero">
         <div>
-          <span className="hc-eyebrow">Cassa ad alto volume</span>
-          <h1>Chiudi tavoli in pochi secondi</h1>
-          <p>{restaurantName || "Ristorante"} · progettata per locali con decine o centinaia di tavoli.</p>
+          <span className="hc-eyebrow">Cassa</span>
+          <h1>Seleziona un tavolo e chiudi il conto</h1>
+          <p>{restaurantName || "Ristorante"} · Ordynora mette prima i tavoli che richiedono attenzione.</p>
         </div>
         <div className="hc-actions">
-          <button onClick={onRefresh}>Aggiorna live</button>
-          <button onClick={() => selectedTable && onPrint(selectedTable)} disabled={!selectedTable}>Preconto</button>
-          <button className="success" onClick={() => selectedTable && onCloseBill(selectedTable)} disabled={!selectedTable || closing}>{closing ? "Chiusura..." : "Chiudi"}</button>
+          <button onClick={onRefresh}>Aggiorna</button>
+          <button onClick={() => selectedTable && onPrint(selectedTable)} disabled={!selectedTable}>Stampa preconto</button>
+          <button className="success" onClick={() => selectedTable && onCloseBill(selectedTable)} disabled={!selectedTable || closing}>{closing ? "Chiusura..." : "Incassa e chiudi"}</button>
         </div>
+      </section>
+
+      <section className="hc-flow-guide" aria-label="Passaggi cassa">
+        <div className={selectedTable ? "is-done" : "is-current"}><i>1</i><span><b>Scegli il tavolo</b><small>Dalla lista o dalla ricerca</small></span></div>
+        <div className={selectedOrder ? "is-current" : ""}><i>2</i><span><b>Controlla il conto</b><small>Articoli, coperti e divisioni</small></span></div>
+        <div><i>3</i><span><b>Incassa e chiudi</b><small>Registra il pagamento</small></span></div>
       </section>
 
       {lastEvent ? <div className="hc-live">Live: {lastEvent.type} · {new Date(lastEvent.at).toLocaleTimeString("it-IT")}</div> : null}

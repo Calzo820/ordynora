@@ -85,6 +85,16 @@ function stationStatus(items = []) {
   return "pending";
 }
 
+function actionableStationItems(items = []) {
+  const released = items.filter((item) => item.status !== "voided" && item.releasedAt);
+  const unfinished = released.filter(
+    (item) => !["ready", "served"].includes(item.preparationStatus || "pending")
+  );
+  if (!unfinished.length) return released;
+  const currentCourse = Math.min(...unfinished.map((item) => Number(item.courseNumber || 1)));
+  return released.filter((item) => Number(item.courseNumber || 1) === currentCourse);
+}
+
 function overallPreparationStatus(items = []) {
   const active = items.filter((item) => item.status !== "voided" && item.preparationArea);
   if (!active.length) return "pending";
@@ -134,6 +144,28 @@ function buildIdempotencyKey({ restaurantId, tableId, clientRequestId }) {
   const safe = clientRequestId ? String(clientRequestId).trim().slice(0, 120) : null;
   if (!safe || !restaurantId || !tableId) return null;
   return [restaurantId, tableId, safe].join(":");
+}
+
+function defaultCourseNumber(menuItem) {
+  if (menuItem?.preparationArea === "bar") return 1;
+  const category = String(menuItem?.category || "").toLowerCase();
+  if (/dolc|dessert/.test(category)) return 4;
+  if (/second|contorn|main/.test(category)) return 3;
+  if (/prim|pasta|riso/.test(category)) return 2;
+  return 1;
+}
+
+function normalizeCourseNumber(value, menuItem) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed)) return defaultCourseNumber(menuItem);
+  return Math.max(1, Math.min(4, parsed));
+}
+
+function requestIdempotencyKey(req, prefix) {
+  const raw = String(req.get?.("idempotency-key") || req.body?.clientRequestId || "").trim();
+  if (!raw) return null;
+  const safe = raw.replace(/[^a-zA-Z0-9:._-]/g, "-").slice(0, 180);
+  return `${prefix}:${req.user?.restaurantId || "restaurant"}:${req.params?.id || "order"}:${safe}`;
 }
 
 async function nextOrderNumber(tx, restaurantId) {
@@ -290,9 +322,15 @@ export const createPublicOrder = async (req, res) => {
         costSnapshot: menuItem.costPrice,
         categorySnapshot: menuItem.category || "Altro",
         preparationArea: menuItem.preparationArea,
+        courseNumber: normalizeCourseNumber(item.courseNumber, menuItem),
       };
     }).filter(Boolean);
     if (!orderItemsData.length) return res.status(400).json({ message: "Gli articoli selezionati non sono validi o disponibili" });
+    const firstCourseNumber = Math.min(...orderItemsData.map((item) => item.courseNumber));
+    const initialReleaseAt = new Date();
+    orderItemsData.forEach((item) => {
+      item.releasedAt = item.courseNumber === firstCourseNumber ? initialReleaseAt : null;
+    });
 
     const order = await prisma.$transaction(async (tx) => {
       let session = await tx.tableSession.findFirst({ where: { restaurantId: table.restaurantId, tableId: table.id, status: "open" }, orderBy: { openedAt: "desc" } });
@@ -471,7 +509,7 @@ export const getPublicOrderByToken = async (req, res) => {
       closedAt: order.closedAt,
       paymentStatus: order.paymentStatus,
       paymentMethod: order.paymentMethod,
-      items: order.items.map((item) => ({ id: item.id, menuItemId: item.menuItemId, quantity: item.quantity, notes: item.notes, nameSnapshot: item.nameSnapshot, priceSnapshot: item.priceSnapshot, categorySnapshot: item.categorySnapshot, preparationArea: item.preparationArea || item.menuItem?.preparationArea || null })),
+      items: order.items.map((item) => ({ id: item.id, menuItemId: item.menuItemId, quantity: item.quantity, notes: item.notes, nameSnapshot: item.nameSnapshot, priceSnapshot: item.priceSnapshot, categorySnapshot: item.categorySnapshot, preparationArea: item.preparationArea || item.menuItem?.preparationArea || null, courseNumber: item.courseNumber, preparationStatus: item.preparationStatus })),
       table: order.table ? { id: order.table.id, name: order.table.name, code: order.table.code } : null,
     });
   } catch (error) {
@@ -545,7 +583,7 @@ export const getServiceOrders = async (req, res) => {
       include: {
         table: true,
         items: {
-          where: { status: "active", preparationArea: area },
+          where: { status: "active", preparationArea: area, releasedAt: { not: null } },
           select: {
             id: true,
             menuItemId: true,
@@ -555,6 +593,10 @@ export const getServiceOrders = async (req, res) => {
             notes: true,
             preparationArea: true,
             preparationStatus: true,
+            courseNumber: true,
+            releasedAt: true,
+            preparationStartedAt: true,
+            preparationReadyAt: true,
             createdAt: true,
             updatedAt: true,
           },
@@ -566,23 +608,27 @@ export const getServiceOrders = async (req, res) => {
     return res.json(
       orders
         .filter((order) => order.items.length > 0)
-        .map((order) => ({
-          id: order.id,
-          publicToken: order.publicToken,
-          orderNumber: order.orderNumber,
-          orderNumberLabel: publicOrderNumber(order.orderNumber),
-          notes: order.notes,
-          source: order.source,
-          status: stationStatus(order.items),
-          globalStatus: order.status,
-          station: area,
-          createdAt: order.createdAt,
-          updatedAt: order.updatedAt,
-          acceptedAt: order.acceptedAt,
-          readyAt: order.readyAt,
-          table: order.table,
-          items: order.items,
-        }))
+        .map((order) => {
+          const visibleItems = actionableStationItems(order.items);
+          return {
+            id: order.id,
+            publicToken: order.publicToken,
+            orderNumber: order.orderNumber,
+            orderNumberLabel: publicOrderNumber(order.orderNumber),
+            notes: order.notes,
+            source: order.source,
+            status: stationStatus(visibleItems),
+            globalStatus: order.status,
+            station: area,
+            activeCourseNumber: visibleItems.length ? Math.min(...visibleItems.map((item) => Number(item.courseNumber || 1))) : null,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
+            acceptedAt: order.acceptedAt,
+            readyAt: order.readyAt,
+            table: order.table,
+            items: visibleItems,
+          };
+        })
     );
   } catch (error) {
     console.error("getServiceOrders error:", error);
@@ -598,6 +644,9 @@ export const updateOrderStatus = async (req, res) => {
     const order = await ensureRestaurantAccess(req, id);
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
     if (order === "FORBIDDEN") return res.status(403).json({ message: "Accesso negato" });
+    if (req.user?.role === "waiter" && (order.status !== "ready" || status !== "served")) {
+      return res.status(403).json({ message: "Il cameriere può solo confermare la consegna di un ordine pronto" });
+    }
     const area = resolveServiceArea(req);
     const stationRole = ["kitchen", "bar"].includes(req.user?.role);
     const isStationUpdate = Boolean(area) && (stationRole || ["owner", "admin"].includes(req.user?.role));
@@ -606,8 +655,14 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(400).json({ message: "Il reparto può gestire solo preparazione e pronto" });
     }
 
+    const stationItems = isStationUpdate
+      ? actionableStationItems(order.items.filter((item) => item.preparationArea === area))
+      : [];
+    if (isStationUpdate && !stationItems.length) {
+      return res.status(409).json({ message: "Nessuna portata disponibile per questo reparto" });
+    }
     const currentStationStatus = isStationUpdate
-      ? stationStatus(order.items.filter((item) => item.preparationArea === area))
+      ? stationStatus(stationItems)
       : order.status;
     if (!canTransitionStatus(currentStationStatus, status)) {
       return res.status(400).json({ message: `Transizione non consentita da ${currentStationStatus} a ${status}` });
@@ -615,14 +670,28 @@ export const updateOrderStatus = async (req, res) => {
 
     const updated = await prisma.$transaction(async (tx) => {
       if (isStationUpdate) {
-        await tx.orderItem.updateMany({
-          where: {
-            orderId: id,
-            status: "active",
-            preparationArea: area,
-          },
-          data: { preparationStatus: status },
-        });
+        const stationWhere = { id: { in: stationItems.map((item) => item.id) } };
+        const now = new Date();
+        if (status === "pending") {
+          await tx.orderItem.updateMany({
+            where: stationWhere,
+            data: { preparationStatus: status, preparationStartedAt: null, preparationReadyAt: null },
+          });
+        } else if (status === "in_progress") {
+          await tx.orderItem.updateMany({
+            where: { ...stationWhere, preparationStartedAt: null },
+            data: { preparationStartedAt: now },
+          });
+          await tx.orderItem.updateMany({
+            where: stationWhere,
+            data: { preparationStatus: status, preparationReadyAt: null },
+          });
+        } else {
+          await tx.orderItem.updateMany({
+            where: stationWhere,
+            data: { preparationStatus: status, preparationReadyAt: now },
+          });
+        }
         const activeItems = await tx.orderItem.findMany({
           where: { orderId: id, status: "active" },
           select: { status: true, preparationArea: true, preparationStatus: true },
@@ -691,10 +760,34 @@ export const updateOrderStatus = async (req, res) => {
         }
       }
       if (["pending", "in_progress", "ready", "served"].includes(status)) {
-        await tx.orderItem.updateMany({
-          where: { orderId: id, status: "active" },
-          data: { preparationStatus: status },
-        });
+        const itemWhere = { orderId: id, status: "active" };
+        const now = new Date();
+        if (status === "pending") {
+          await tx.orderItem.updateMany({
+            where: itemWhere,
+            data: { preparationStatus: status, preparationStartedAt: null, preparationReadyAt: null },
+          });
+        } else if (status === "in_progress") {
+          await tx.orderItem.updateMany({
+            where: { ...itemWhere, preparationStartedAt: null },
+            data: { preparationStartedAt: now },
+          });
+          await tx.orderItem.updateMany({
+            where: itemWhere,
+            data: { preparationStatus: status, preparationReadyAt: null },
+          });
+        } else if (status === "ready") {
+          await tx.orderItem.updateMany({
+            where: { ...itemWhere, preparationStartedAt: null },
+            data: { preparationStartedAt: order.acceptedAt || now },
+          });
+          await tx.orderItem.updateMany({
+            where: itemWhere,
+            data: { preparationStatus: status, preparationReadyAt: now },
+          });
+        } else {
+          await tx.orderItem.updateMany({ where: itemWhere, data: { preparationStatus: status } });
+        }
       }
       const result = await tx.order.update({ where: { id }, data, include: { table: true, items: true } });
       await tx.orderStatusHistory.create({ data: { orderId: id, fromStatus: order.status, toStatus: status, changedByUserId: req.user?.userId || null, changedByRole: req.user?.role || null } });
@@ -735,6 +828,108 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
+export const releaseOrderCourse = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const courseNumber = Number(req.params.courseNumber);
+    if (!Number.isInteger(courseNumber) || courseNumber < 1 || courseNumber > 4) {
+      return res.status(400).json({ message: "Portata non valida: usa un numero da 1 a 4" });
+    }
+
+    const order = await ensureRestaurantAccess(req, id);
+    if (!order) return res.status(404).json({ message: "Ordine non trovato" });
+    if (order === "FORBIDDEN") return res.status(403).json({ message: "Accesso negato" });
+    if (order.closedAt || ["served", "cancelled"].includes(order.status)) {
+      return res.status(409).json({ message: "Non puoi inviare una portata di un ordine chiuso" });
+    }
+
+    const courseItems = order.items.filter(
+      (item) => item.status !== "voided" && Number(item.courseNumber || 1) === courseNumber
+    );
+    if (!courseItems.length) {
+      return res.status(404).json({ message: `Nessun articolo nella portata ${courseNumber}` });
+    }
+    if (courseItems.every((item) => item.releasedAt)) {
+      return res.json({
+        message: `Portata ${courseNumber} già inviata ai reparti`,
+        order,
+        courseNumber,
+        alreadyReleased: true,
+      });
+    }
+
+    const heldCourses = [...new Set(
+      order.items
+        .filter((item) => item.status !== "voided" && !item.releasedAt)
+        .map((item) => Number(item.courseNumber || 1))
+    )].sort((a, b) => a - b);
+    if (heldCourses[0] !== courseNumber) {
+      return res.status(409).json({
+        message: `Invia prima la portata ${heldCourses[0]}`,
+        nextCourseNumber: heldCourses[0],
+      });
+    }
+
+    const releasedAt = new Date();
+    const result = await prisma.$transaction(async (tx) => {
+      const released = await tx.orderItem.updateMany({
+        where: {
+          orderId: id,
+          status: "active",
+          courseNumber,
+          releasedAt: null,
+        },
+        data: { releasedAt },
+      });
+      const updated = await tx.order.findUnique({
+        where: { id },
+        include: { table: true, items: true },
+      });
+      await writeAudit(tx, req, {
+        action: "order.course_released",
+        entityType: "order",
+        entityId: id,
+        metadata: { courseNumber, releasedItems: released.count },
+      });
+      return { updated, releasedCount: released.count };
+    });
+
+    emitSocket(req, "course-released", {
+      orderId: result.updated.id,
+      tableName: result.updated.table?.name,
+      tableId: result.updated.table?.id,
+      restaurantId: result.updated.restaurantId,
+      courseNumber,
+      releasedAt,
+    });
+    emitSocket(req, "order-updated", {
+      orderId: result.updated.id,
+      tableName: result.updated.table?.name,
+      tableId: result.updated.table?.id,
+      restaurantId: result.updated.restaurantId,
+      status: result.updated.status,
+      reason: "course-released",
+    });
+    emitSocket(req, "table-updated", {
+      tableName: result.updated.table?.name,
+      tableId: result.updated.table?.id,
+      restaurantId: result.updated.restaurantId,
+      reason: "course-released",
+    });
+
+    return res.json({
+      message: `Portata ${courseNumber} inviata ai reparti`,
+      order: result.updated,
+      courseNumber,
+      releasedCount: result.releasedCount,
+      alreadyReleased: result.releasedCount === 0,
+    });
+  } catch (error) {
+    console.error("releaseOrderCourse error:", error);
+    return res.status(500).json({ message: "Errore durante l'invio della portata" });
+  }
+};
+
 export const addOrderExtra = async (req, res) => {
   try {
     const { id } = req.params;
@@ -762,6 +957,8 @@ export const addOrderExtra = async (req, res) => {
           priceSnapshot: parseNumber(price),
           categorySnapshot: "Extra",
           preparationArea,
+          courseNumber: normalizeCourseNumber(req.body?.courseNumber, { preparationArea, category: "Extra" }),
+          releasedAt: new Date(),
         },
       });
       await createOrderPrintJobs(
@@ -791,8 +988,30 @@ export const closeOrder = async (req, res) => {
     const order = await ensureRestaurantAccess(req, id);
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
     if (order === "FORBIDDEN") return res.status(403).json({ message: "Accesso negato" });
+    if (order.closedAt) {
+      return res.json({ message: "Conto già chiuso", order, alreadyProcessed: true });
+    }
+    const closeKey = requestIdempotencyKey(req, "close");
+    if (closeKey) {
+      const existingAttempt = await prisma.paymentTransaction.findFirst({
+        where: { orderId: id, splitKey: { startsWith: `${closeKey}:` } },
+      });
+      if (existingAttempt) {
+        const current = await ensureRestaurantAccess(req, id);
+        return res.json({ message: "Chiusura già registrata", order: current, alreadyProcessed: true });
+      }
+    }
 
     const outcome = await prisma.$transaction(async (tx) => {
+      const lock = await tx.order.updateMany({
+        where: { id, restaurantId: req.user.restaurantId, closedAt: null },
+        data: { updatedAt: new Date() },
+      });
+      if (lock.count !== 1) {
+        const alreadyClosed = new Error("Il conto è già stato chiuso da un altro dispositivo");
+        alreadyClosed.code = "ORDER_ALREADY_CLOSED";
+        throw alreadyClosed;
+      }
       const adjustments = {};
       if (discount !== undefined) {
         adjustments.discountAmount = Math.max(0, parseNumber(discount));
@@ -829,7 +1048,7 @@ export const closeOrder = async (req, res) => {
         throw overpaymentError;
       }
 
-      for (const row of rows) {
+      for (const [index, row] of rows.entries()) {
         await tx.paymentTransaction.create({
           data: {
             restaurantId: order.restaurantId,
@@ -840,6 +1059,7 @@ export const closeOrder = async (req, res) => {
             status: "paid",
             method: row.method,
             splitLabel: row.splitLabel,
+            splitKey: closeKey ? `${closeKey}:${index}` : null,
             paidAt: new Date(),
             createdByUserId: req.user?.userId || null,
           },
@@ -937,6 +1157,18 @@ export const closeOrder = async (req, res) => {
     return res.json({ message: "Conto chiuso correttamente", order: updated, paidTotal: outcome.paidTotal });
   } catch (error) {
     console.error("closeOrder error:", error);
+    if (error?.code === "P2002") {
+      const current = await ensureRestaurantAccess(req, req.params.id).catch(() => null);
+      if (current && current !== "FORBIDDEN") {
+        return res.json({ message: "Chiusura già registrata", order: current, alreadyProcessed: true });
+      }
+    }
+    if (error?.code === "ORDER_ALREADY_CLOSED") {
+      const current = await ensureRestaurantAccess(req, req.params.id).catch(() => null);
+      if (current && current !== "FORBIDDEN") {
+        return res.json({ message: "Conto già chiuso", order: current, alreadyProcessed: true });
+      }
+    }
     if (error?.code === "OVERPAYMENT") return res.status(400).json({ message: error.message });
     if (error?.code === "PAYMENT_IN_PROGRESS") return res.status(409).json({ message: error.message });
     return res.status(500).json({ message: "Errore durante chiusura conto" });
@@ -953,6 +1185,22 @@ export const addOrderPayment = async (req, res) => {
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
     if (order === "FORBIDDEN") return res.status(403).json({ message: "Accesso negato" });
     if (order.closedAt) return res.status(400).json({ message: "Il conto è già chiuso" });
+    const paymentKey = requestIdempotencyKey(req, "manual-payment");
+    if (paymentKey) {
+      const existingAttempt = await prisma.paymentTransaction.findFirst({
+        where: { orderId: id, splitKey: { startsWith: `${paymentKey}:` } },
+      });
+      if (existingAttempt) {
+        const paidTotal = paidPaymentsTotal(order.payments || []);
+        return res.json({
+          message: "Pagamento già registrato",
+          order,
+          paidTotal,
+          remaining: Math.max(0, parseNumber(order.totalAmount) - paidTotal),
+          alreadyProcessed: true,
+        });
+      }
+    }
     if (hasActivePendingPayment(order.payments || [])) {
       return res.status(409).json({ message: "È presente un pagamento online in corso" });
     }
@@ -963,7 +1211,30 @@ export const addOrderPayment = async (req, res) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      for (const row of rows) {
+      const lock = await tx.order.updateMany({
+        where: { id, restaurantId: req.user.restaurantId, closedAt: null },
+        data: { updatedAt: new Date() },
+      });
+      if (lock.count !== 1) {
+        const alreadyClosed = new Error("Il conto è già chiuso");
+        alreadyClosed.code = "ORDER_ALREADY_CLOSED";
+        throw alreadyClosed;
+      }
+      const paymentsAtLock = await tx.paymentTransaction.findMany({
+        where: { orderId: id, status: { in: ["paid", "pending"] } },
+      });
+      if (hasActivePendingPayment(paymentsAtLock)) {
+        const pendingError = new Error("È presente un pagamento online in corso");
+        pendingError.code = "PAYMENT_IN_PROGRESS";
+        throw pendingError;
+      }
+      const paidAtLock = paidPaymentsTotal(paymentsAtLock);
+      if (paidAtLock + rowsTotal > parseNumber(order.totalAmount) + 0.009) {
+        const overpaymentError = new Error("L'importo inserito supera il saldo del conto");
+        overpaymentError.code = "OVERPAYMENT";
+        throw overpaymentError;
+      }
+      for (const [index, row] of rows.entries()) {
         await tx.paymentTransaction.create({
           data: {
             restaurantId: order.restaurantId,
@@ -974,6 +1245,7 @@ export const addOrderPayment = async (req, res) => {
             status: "paid",
             method: row.method,
             splitLabel: row.splitLabel,
+            splitKey: paymentKey ? `${paymentKey}:${index}` : null,
             paidAt: new Date(),
             createdByUserId: req.user?.userId || null,
           },
@@ -1008,6 +1280,22 @@ export const addOrderPayment = async (req, res) => {
     return res.status(201).json({ message: "Pagamento registrato", ...result });
   } catch (error) {
     console.error("addOrderPayment error:", error);
+    if (error?.code === "P2002") {
+      const current = await ensureRestaurantAccess(req, req.params.id).catch(() => null);
+      if (current && current !== "FORBIDDEN") {
+        const paidTotal = paidPaymentsTotal(current.payments || []);
+        return res.json({
+          message: "Pagamento già registrato",
+          order: current,
+          paidTotal,
+          remaining: Math.max(0, parseNumber(current.totalAmount) - paidTotal),
+          alreadyProcessed: true,
+        });
+      }
+    }
+    if (error?.code === "ORDER_ALREADY_CLOSED") return res.status(409).json({ message: error.message });
+    if (error?.code === "PAYMENT_IN_PROGRESS") return res.status(409).json({ message: error.message });
+    if (error?.code === "OVERPAYMENT") return res.status(400).json({ message: error.message });
     return res.status(500).json({ message: "Errore durante la registrazione del pagamento" });
   }
 };
@@ -1315,6 +1603,7 @@ export const reopenOrder = async (req, res) => {
           servedAt: null,
           reopenedAt: new Date(),
           reopenedByUserId: req.user?.userId || null,
+          billRevision: { increment: 1 },
         },
         include: { table: true, items: true, payments: { orderBy: { createdAt: "asc" } } },
       });

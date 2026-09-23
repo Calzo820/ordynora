@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../lib/api";
 import { imageFileToDataUrl } from "../lib/imageFiles";
+import { MENU_IMPORT_TEMPLATE, parseMenuCsv } from "../lib/menuImport";
 import { getRoleLabel } from "../lib/roles";
 import usePwaInstall from "../hooks/usePwaInstall";
 import { appShellStyle, glowPageStyle } from "../styles/pageStyles";
@@ -152,6 +153,8 @@ export default function AdminPanel({ embedded = false } = {}) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [areaFilter, setAreaFilter] = useState("all");
   const [qualityFilter, setQualityFilter] = useState("all");
+  const [menuImport, setMenuImport] = useState(null);
+  const [importingMenu, setImportingMenu] = useState(false);
   const [restaurantForm, setRestaurantForm] = useState({
     name: "",
     primaryColor: "#1d4ed8",
@@ -260,6 +263,12 @@ export default function AdminPanel({ embedded = false } = {}) {
       : activeTab === "tables"
         ? "Configura tavoli, codici e QR senza perdere leggibilità anche su molti coperti."
         : "Prodotti, prezzi, disponibilità e anteprima cliente senza funzioni duplicate.";
+  const managementTabs = [
+    { key: "menu", label: "Menu", text: "Piatti e prezzi" },
+    { key: "tables", label: "Tavoli", text: "Sala e QR" },
+    { key: "staff", label: "Staff", text: "PIN e ruoli" },
+    { key: "settings", label: "Impostazioni", text: "Profilo e assistenza" },
+  ];
 
   async function handleRestaurantSubmit(event) {
     event.preventDefault();
@@ -556,6 +565,48 @@ export default function AdminPanel({ embedded = false } = {}) {
     }
   }
 
+  async function previewMenuImport(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const parsed = parseMenuCsv(await file.text());
+      setMenuImport({ ...parsed, fileName: file.name });
+      setError(parsed.items.length ? "" : "Il file non contiene prodotti validi.");
+      setSuccess("");
+    } catch (importError) {
+      setMenuImport(null);
+      setError(importError.message || "Non riesco a leggere il file CSV.");
+    }
+  }
+
+  async function confirmMenuImport() {
+    if (!menuImport?.items?.length || importingMenu) return;
+    try {
+      setImportingMenu(true);
+      setError("");
+      setSuccess("");
+      const result = await apiPost("/menu/import", { items: menuImport.items, mode: "upsert" });
+      setSuccess(`${result.created || 0} prodotti creati, ${result.updated || 0} aggiornati.`);
+      setMenuImport(null);
+      await loadData();
+    } catch (importError) {
+      setError(importError.message || "Importazione menu non riuscita.");
+    } finally {
+      setImportingMenu(false);
+    }
+  }
+
+  function downloadMenuTemplate() {
+    const blob = new Blob([`\uFEFF${MENU_IMPORT_TEMPLATE}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "modello-menu-ordynora.csv";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   function renderMenu() {
     return (
       <>
@@ -571,6 +622,34 @@ export default function AdminPanel({ embedded = false } = {}) {
           </div>
         </div>
       </div>
+
+      <section className="management-card menu-import-card">
+        <div>
+          <span>Avvio rapido</span>
+          <h2>Importa il menu da CSV</h2>
+          <p>Carica fino a 500 prodotti. Nome e categoria uguali aggiornano il prodotto esistente senza creare doppioni.</p>
+        </div>
+        <div className="menu-import-actions">
+          <button className="management-btn secondary" type="button" onClick={downloadMenuTemplate}>Scarica modello</button>
+          <label className="management-btn">
+            Scegli CSV
+            <input type="file" accept=".csv,text/csv" onChange={previewMenuImport} />
+          </label>
+        </div>
+        {menuImport ? (
+          <div className="menu-import-preview">
+            <div>
+              <b>{menuImport.fileName}</b>
+              <span>{menuImport.items.length} prodotti validi</span>
+              {menuImport.errors.length ? <small>{menuImport.errors.slice(0, 4).join(" · ")}</small> : <small>Controllo completato: il file è pronto.</small>}
+            </div>
+            <button className="management-btn" type="button" disabled={!menuImport.items.length || importingMenu} onClick={confirmMenuImport}>
+              {importingMenu ? "Importazione..." : `Importa ${menuImport.items.length} prodotti`}
+            </button>
+            <button className="management-btn secondary" type="button" disabled={importingMenu} onClick={() => setMenuImport(null)}>Annulla</button>
+          </div>
+        ) : null}
+      </section>
 
       {customerMenuLink ? (
         <a className="menu-customer-strip" href={customerMenuLink} target="_blank" rel="noreferrer">
@@ -1062,6 +1141,21 @@ export default function AdminPanel({ embedded = false } = {}) {
               <p className="management-hero-subtitle">{pageSubtitle}</p>
             </div>
           </div>
+
+          <nav className="management-tabs" aria-label="Sezioni gestione ristorante">
+            {managementTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                className={activeTab === tab.key ? "management-tab is-active" : "management-tab"}
+                aria-current={activeTab === tab.key ? "page" : undefined}
+                onClick={() => navigate(`/admin?tab=${tab.key}`)}
+              >
+                <strong>{tab.label}</strong>
+                <span>{tab.text}</span>
+              </button>
+            ))}
+          </nav>
 
           {error ? <div className="management-card" style={{ borderColor: "#fecaca", color: "#b91c1c" }}>{error}</div> : null}
           {success ? <div className="management-card" style={{ borderColor: "#bbf7d0", color: "#166534" }}>{success}</div> : null}

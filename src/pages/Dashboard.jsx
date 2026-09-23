@@ -305,6 +305,19 @@ function Dashboard() {
 
         <ServiceReadinessChecklist items={readinessItems} progress={readinessProgress} />
 
+        <section className="dash-now" aria-label="Azioni principali">
+          <div>
+            <span>Da dove vuoi iniziare?</span>
+            <h2>Apri direttamente lo strumento che ti serve</h2>
+          </div>
+          <nav>
+            <Link to="/tavoli"><b>Sala</b><small>Tavoli, prenotazioni e portate</small></Link>
+            <Link to="/cucina"><b>Cucina</b><small>Comande e tempi</small></Link>
+            <Link to="/cassa"><b>Cassa</b><small>Conti e pagamenti</small></Link>
+            <Link to="/admin?tab=menu"><b>Menu</b><small>Piatti, prezzi e disponibilità</small></Link>
+          </nav>
+        </section>
+
         {data?.privacyMode ? (
           <div className="dash-super-banner">
             <div><b>Privacy attiva</b> - dati economici e importi ordine sono oscurati durante l'assistenza SuperAdmin.</div>
@@ -312,26 +325,26 @@ function Dashboard() {
         ) : null}
 
         <section className="dash-service-strip">
-          <article className={num(kpis.unavailableItems) ? "dash-service-card is-warning" : "dash-service-card"}>
+          <Link to="/admin?tab=menu" className={num(kpis.unavailableItems) ? "dash-service-card is-warning" : "dash-service-card"}>
             <span>Menu</span>
             <b>{num(kpis.unavailableItems)} piatti non disponibili</b>
             <small>Aggiorna solo cosa il cliente può ordinare.</small>
-          </article>
-          <article className={alertCount ? "dash-service-card is-warning" : "dash-service-card is-calm"}>
+          </Link>
+          <Link to="/errori" className={alertCount ? "dash-service-card is-warning" : "dash-service-card is-calm"}>
             <span>Controllo</span>
             <b>{alertCount ? `${alertCount} alert` : "Tutto regolare"}</b>
             <small>Verifica pagamenti, errori e avvisi.</small>
-          </article>
-          <article className="dash-service-card is-report">
+          </Link>
+          <Link to="/statistiche" className="dash-service-card is-report">
             <span>Statistiche</span>
             <b>Report e consigli</b>
             <small>Apri numeri, prodotti top e consulente Ordynora.</small>
-          </article>
-          <article className="dash-service-card is-report">
+          </Link>
+          <Link to="/storico" className="dash-service-card is-report">
             <span>Storico</span>
             <b>Ordini chiusi</b>
             <small>Rivedi conti, pagamenti e comande concluse.</small>
-          </article>
+          </Link>
         </section>
 
         <section className="dash-main-grid dash-main-grid--focus">
@@ -357,7 +370,8 @@ function Dashboard() {
         {advancedOpen ? (
           <>
             <section className="dash-kpi-grid dash-kpi-grid--advanced">
-              <DashboardStat label="Tempo cucina" value={minutes(kpis.averagePreparationMinutes)} detail="Media accettazione-pronto" tone="live" />
+              <DashboardStat label="Tempo cucina" value={minutes(kpis.averageKitchenMinutes || kpis.averagePreparationMinutes)} detail="Media reale in lavorazione" tone="live" />
+              <DashboardStat label="Tempo bar" value={minutes(kpis.averageBarMinutes)} detail="Media reale in lavorazione" tone="neutral" />
               <DashboardStat label="Tempo servizio" value={minutes(kpis.averageServiceMinutes)} detail="Media ordine-servito" tone="neutral" />
               <DashboardStat label="Ordini completati" value={num(kpis.completedOrdersToday)} detail="Serviti e chiusi oggi" tone="live" />
               <DashboardStat

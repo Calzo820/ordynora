@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import Navbar from "../components/Navbar";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../lib/api";
+import { summarizeCourseFlow } from "../lib/courseFlow";
 import { createRestaurantSocket } from "../lib/realtime";
 import { glowPageStyle } from "../styles/pageStyles";
 
@@ -164,6 +165,9 @@ function liveTableState(table, status, reservations, selectedDate) {
   }
   if (isToday && status?.status === "ready") {
     return { kind: "ready", label: "Pronto", detail: "Da servire", total: status?.activeOrder?.totalAmount || 0 };
+  }
+  if (isToday && status?.status === "served") {
+    return { kind: "served", label: "Servito", detail: "Conto aperto", total: status?.activeOrder?.totalAmount || 0 };
   }
   if (isToday && ["in_progress", "pending", "active"].includes(status?.status)) {
     return { kind: "occupied", label: "Occupato", detail: status?.activeOrder ? `Ordine ${status.activeOrder.orderNumber || ""}` : "Sessione aperta", total: status?.activeOrder?.totalAmount || status?.activeSession?.totalAmount || 0 };
@@ -342,7 +346,13 @@ export default function Tavoli() {
     .map((table) => {
       const tableReservations = dayReservations.filter((reservation) => reservationMatchesTable(reservation, table));
       const status = statusMap.get(`id:${table.id}`) || statusMap.get(`code:${String(table.code || "").toUpperCase()}`) || statusMap.get(semanticTableKey(table)) || null;
-      return { ...table, dayReservations: tableReservations, visual: liveTableState(table, status, tableReservations, selectedDate) };
+      return {
+        ...table,
+        dayReservations: tableReservations,
+        live: status,
+        activeOrder: status?.activeOrder || null,
+        visual: liveTableState(table, status, tableReservations, selectedDate),
+      };
     })
     .sort((a, b) => String(a.code).localeCompare(String(b.code), "it", { numeric: true })), [dayReservations, selectedDate, statusMap, tables]);
 
@@ -362,6 +372,10 @@ export default function Tavoli() {
   }, [normalizedQuery, tableCards]);
 
   const selectedTable = tableCards.find((table) => table.id === selectedTableId) || null;
+  const selectedCourseFlow = useMemo(
+    () => summarizeCourseFlow(selectedTable?.activeOrder?.items || []),
+    [selectedTable]
+  );
   const editingReservation = reservations.find((reservation) => reservation.id === editingReservationId) || null;
   const monthDays = useMemo(() => calendarDays(visibleMonth), [visibleMonth]);
 
@@ -514,6 +528,40 @@ export default function Tavoli() {
     setMessage("Link del tavolo copiato.");
   }
 
+  async function markOrderServed(table) {
+    if (!table?.activeOrder?.id || table.activeOrder.status !== "ready" || saving) return;
+    try {
+      setSaving(true);
+      setError("");
+      setMessage("");
+      await apiPatch(`/orders/${table.activeOrder.id}/status`, { status: "served" });
+      setMessage(`${formatTableLabel(table)} consegnato: ordine segnato come servito.`);
+      await loadCore();
+    } catch (statusError) {
+      setError(statusError.message || "Non riesco a confermare la consegna al tavolo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function releaseCourse(table, courseNumber) {
+    if (!table?.activeOrder?.id || !courseNumber || saving) return;
+    try {
+      setSaving(true);
+      setError("");
+      setMessage("");
+      const result = await apiPost(`/orders/${table.activeOrder.id}/courses/${courseNumber}/release`, {});
+      setMessage(result?.alreadyReleased
+        ? `Portata ${courseNumber} era già stata inviata.`
+        : `Portata ${courseNumber} inviata a cucina e bar.`);
+      await loadCore();
+    } catch (releaseError) {
+      setError(releaseError.message || "Non riesco a inviare la portata ai reparti.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const menuLink = selectedTable && restaurant?.slug
     ? `${window.location.origin}/menu/${restaurant.slug}/${selectedTable.qrToken}`
     : "";
@@ -531,6 +579,7 @@ export default function Tavoli() {
             <span><i className="free" />Libero</span>
             <span><i className="reserved" />Prenotato</span>
             <span><i className="occupied" />Occupato</span>
+            <span><i className="ready" />Da servire</span>
             <span><i className="bill" />Conto</span>
           </div>
           {canConfigureTables ? (
@@ -698,6 +747,57 @@ export default function Tavoli() {
                   <b>{selectedTable.visual.label}</b>
                   <span>{selectedTable.visual.detail}</span>
                 </div>
+
+                {selectedTable.activeOrder ? (
+                  <section className="table-service-actions" aria-label="Azioni servizio tavolo">
+                    <div>
+                      <span>Comanda attiva</span>
+                      <b>{selectedTable.activeOrder.orderNumber ? `#${selectedTable.activeOrder.orderNumber}` : "In corso"}</b>
+                      <small>{selectedTable.activeOrder.status === "ready" ? "Pronta per la consegna" : selectedTable.visual.detail}</small>
+                    </div>
+                    {selectedTable.activeOrder.status === "ready" && ["owner", "admin", "waiter"].includes(currentRole) ? (
+                      <button type="button" onClick={() => markOrderServed(selectedTable)} disabled={saving}>
+                        {saving ? "Confermo..." : "Consegnato al tavolo"}
+                      </button>
+                    ) : null}
+                    {selectedCourseFlow.hasMultipleCourses ? (
+                      <div className="table-course-flow">
+                        <div className="table-course-flow__head">
+                          <span>Sequenza portate</span>
+                          <small>La cucina vede solo la portata chiamata dalla sala.</small>
+                        </div>
+                        <div className="table-course-flow__steps" aria-label="Stato portate">
+                          {selectedCourseFlow.courses.map((course) => (
+                            <span
+                              key={course.courseNumber}
+                              className={`is-${course.released ? course.status : "held"}`}
+                              title={`${course.quantity} articoli`}
+                            >
+                              {course.courseNumber}ª · {course.released
+                                ? course.status === "ready"
+                                  ? "pronta"
+                                  : course.status === "in_progress"
+                                    ? "in cucina"
+                                    : "inviata"
+                                : "in attesa"}
+                            </span>
+                          ))}
+                        </div>
+                        {selectedCourseFlow.nextHeldCourse && ["owner", "admin", "waiter"].includes(currentRole) ? (
+                          <button
+                            type="button"
+                            className="table-course-flow__release"
+                            onClick={() => releaseCourse(selectedTable, selectedCourseFlow.nextHeldCourse.courseNumber)}
+                            disabled={saving}
+                          >
+                            {saving ? "Invio..." : `Invia ${selectedCourseFlow.nextHeldCourse.courseNumber}ª portata`}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {menuLink ? <a href={menuLink} target="_blank" rel="noreferrer">Apri comanda</a> : null}
+                  </section>
+                ) : null}
 
                 {selectedTable.dayReservations.length ? (
                   <div className="table-booking-existing">

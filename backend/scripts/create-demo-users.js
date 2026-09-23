@@ -336,6 +336,8 @@ function orderItemsData(items) {
       priceSnapshot: menuItem.price,
       categorySnapshot: menuItem.category,
       preparationArea: menuItem.preparationArea,
+      courseNumber: Number(item.courseNumber || 1),
+      releasedAt: new Date(),
     };
   });
 }
@@ -546,6 +548,7 @@ async function main() {
     { name: "Admin Demo", email: "admin@demo.test", role: "admin" },
     { name: "Cucina Demo", email: "cucina@demo.test", role: "kitchen" },
     { name: "Bar Demo", email: "bar@demo.test", role: "bar" },
+    { name: "Sala Demo", email: "sala@demo.test", role: "waiter" },
     { name: "Cassa Demo", email: "cassa@demo.test", role: "cashier" },
   ];
 
@@ -696,7 +699,7 @@ async function main() {
   console.log("Statistiche: storico pagato negli ultimi 10 giorni");
   console.log(`Menu cliente: /menu/${RESTAURANT_SLUG}/${DEMO_TABLE_TOKEN_PREFIX}-1`);
   console.log(`Login owner: owner@demo.test / ${DEMO_PASSWORD}`);
-  console.log("Login staff: cucina@demo.test, bar@demo.test, cassa@demo.test");
+  console.log("Login staff: cucina@demo.test, bar@demo.test, sala@demo.test, cassa@demo.test");
 }
 
 main()

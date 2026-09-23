@@ -749,10 +749,12 @@ function Cassa() {
       setClosing(true);
       setErrore("");
       await salvaImpostazioniConto(ordine, { silent: true });
+      const paidCount = (ordine.payments || []).filter((payment) => payment.status === "paid").length;
+      const clientRequestId = `deposit:${ordine.backendId}:${ordine.billRevision || 1}:${paidCount}:${cfg.pagamento}:${amount.toFixed(2)}`;
       const response = await fetch(`${API_URL}/orders/${ordine.backendId}/payments`, {
         method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ method: cfg.pagamento, amount, label: "Acconto" }),
+        headers: getAuthHeaders({ "Idempotency-Key": clientRequestId }),
+        body: JSON.stringify({ method: cfg.pagamento, amount, label: "Acconto", clientRequestId }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.message || "Acconto non registrato");
@@ -923,12 +925,14 @@ function Cassa() {
         if (saldoResiduo > 0.009 && !cfg.pagamentoMisto && !cfg.pagamento) {
           throw new Error("Scegli il metodo di pagamento.");
         }
+        const clientRequestId = `close:${ordine.backendId}:${ordine.billRevision || 1}`;
         const response = await fetch(`${API_URL}/orders/${ordine.backendId}/close`, {
           method: "POST",
-          headers: getAuthHeaders(),
+          headers: getAuthHeaders({ "Idempotency-Key": clientRequestId }),
           body: JSON.stringify({
             paymentMethod: saldoResiduo > 0.009 && !cfg.pagamentoMisto ? cfg.pagamento || null : null,
             payments: saldoResiduo > 0.009 && cfg.pagamentoMisto ? mixedPayments : undefined,
+            clientRequestId,
           }),
         });
 

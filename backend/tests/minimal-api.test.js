@@ -52,6 +52,11 @@ test("order status update requires auth", async () => {
   assert.match(res.body.message, /Token/);
 });
 
+test("course release requires auth", async () => {
+  const res = await request(app).post("/orders/order_123/courses/2/release").send({}).expect(401);
+  assert.match(res.body.message, /Token/);
+});
+
 test("stripe webhook is disabled without STRIPE_SECRET_KEY", async () => {
   delete process.env.STRIPE_SECRET_KEY;
   const res = await request(app)

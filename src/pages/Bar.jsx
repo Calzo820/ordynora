@@ -157,6 +157,7 @@ export default function Bar() {
             nome: p.nameSnapshot,
             qty: p.quantity,
             stato: ordine.status,
+            courseNumber: Number(p.courseNumber || 1),
             categoria: p.categorySnapshot || "Bar",
             nota: p.notes || "",
           }))

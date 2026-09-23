@@ -102,8 +102,12 @@ async function performFetch(endpoint, options = {}, withAuth = true, attempt = 0
     const data = await parseResponse(response);
 
     if (!response.ok) {
-      if (response.status >= 500 && attempt < maxRetries) {
-        await wait(Math.min(4000, retryDelayMs * 2 ** attempt));
+      if ((response.status >= 500 || response.status === 429) && attempt < maxRetries) {
+        const retryAfterSeconds = Number(response.headers.get("Retry-After") || 0);
+        const delay = retryAfterSeconds > 0
+          ? Math.min(10000, retryAfterSeconds * 1000)
+          : Math.min(4000, retryDelayMs * 2 ** attempt);
+        await wait(delay);
         return performFetch(endpoint, options, withAuth, attempt + 1);
       }
       if (response.status === 402) {

@@ -17,6 +17,8 @@ import "./styles/surprise-polish.css";
 import "./styles/scale-polish.css";
 import "./styles/premium-responsive-v2.css";
 import "./styles/mobile-experience-v3.css";
+import "./styles/service-flow-v5.css";
+import "./styles/intuition-v6.css";
 
 initPwaInstall();
 

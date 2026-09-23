@@ -41,6 +41,7 @@ function printJobInclude(area) {
             notes: true,
             preparationArea: true,
             preparationStatus: true,
+            courseNumber: true,
           },
         },
       },

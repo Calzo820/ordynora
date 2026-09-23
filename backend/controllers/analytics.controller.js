@@ -141,6 +141,17 @@ function averageMinutes(orders, startField, endField) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
 }
 
+function averageItemPreparationMinutes(orders, area) {
+  const values = orders.flatMap((order) => (order.items || [])
+    .filter((item) => item.status !== "voided" && item.preparationArea === area)
+    .map((item) => {
+      if (!item.preparationStartedAt || !item.preparationReadyAt) return null;
+      return (new Date(item.preparationReadyAt) - new Date(item.preparationStartedAt)) / 60000;
+    }))
+    .filter((value) => Number.isFinite(value) && value >= 0);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+
 export const getAnalyticsSummary = async (req, res) => {
   try {
     const range = getRange(req.query);
@@ -374,6 +385,8 @@ export const getAnalyticsSummary = async (req, res) => {
     const previousCost = previousProductTotals.reduce((sum, product) => sum + product.cost, 0);
     const previousMargin = previousRevenue - previousCost;
     const averagePreparationMinutes = averageMinutes(completedRange, "acceptedAt", "readyAt");
+    const averageKitchenMinutes = averageItemPreparationMinutes(ordersInRange, "kitchen");
+    const averageBarMinutes = averageItemPreparationMinutes(ordersInRange, "bar");
     const averageServiceMinutes = averageMinutes(completedRange, "createdAt", "servedAt");
     const voidedItemsRange = ordersInRange.reduce(
       (sum, order) => sum + (order.items || []).filter((item) => item.status === "voided").length,
@@ -502,6 +515,8 @@ export const getAnalyticsSummary = async (req, res) => {
         foodCostRange: hideMoney(totalCostRange),
         marginRateRange: revenueRange ? (grossMarginRange / revenueRange) * 100 : 0,
         averagePreparationMinutes,
+        averageKitchenMinutes,
+        averageBarMinutes,
         averageServiceMinutes,
         voidedItems: voidedItemsRange,
         complimentaryItems: complimentaryItemsRange,

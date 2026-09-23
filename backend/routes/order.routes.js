@@ -12,6 +12,7 @@ import {
   deleteOrder,
   getOrderAudit,
   reopenOrder,
+  releaseOrderCourse,
   updateOrderBillSettings,
   updateOrderItem,
   updateOrderStatus,
@@ -35,9 +36,18 @@ router.patch(
   requireAuth,
   denyImpersonatedPrivateData,
   requireActiveSubscription,
-  requireRole(["owner", "admin", "kitchen", "bar"]),
+  requireRole(["owner", "admin", "kitchen", "bar", "waiter"]),
   validateOrderStatusPayload,
   updateOrderStatus
+);
+
+router.post(
+  "/:id/courses/:courseNumber/release",
+  requireAuth,
+  denyImpersonatedPrivateData,
+  requireActiveSubscription,
+  requireRole(["owner", "admin", "waiter"]),
+  releaseOrderCourse
 );
 
 router.post(

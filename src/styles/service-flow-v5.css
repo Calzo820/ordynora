@@ -1,0 +1,132 @@
+.tables-calendar-legend .ready { background: #0f9f88; }
+
+.table-compact--served {
+  background: #fff7d6;
+  border-color: #e6c454;
+  color: #664b00;
+  box-shadow: inset 0 4px 0 #d4a700;
+}
+
+.table-booking-status.is-served {
+  background: #fff7d6;
+  color: #664b00;
+}
+
+.table-service-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 13px;
+  border: 1px solid #b9d9d2;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f0fdfa, #f8fafc);
+}
+
+.table-service-actions > div { display: grid; gap: 2px; min-width: 0; }
+.table-service-actions span { color: #526477; font-size: 11px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.table-service-actions b { color: #0f2f2a; font-size: 17px; }
+.table-service-actions small { color: #526477; font-weight: 700; }
+.table-service-actions button,
+.table-service-actions a {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid #0f766e;
+  border-radius: 9px;
+  background: #0f766e;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.table-service-actions a { grid-column: 1 / -1; background: #fff; color: #0f5c56; }
+
+.table-course-flow {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid #d8e1e7;
+  border-radius: 10px;
+  background: #fff;
+}
+.table-course-flow__head { grid-column: 1 / -1; display: grid; gap: 2px; }
+.table-course-flow__head span { color: #17324d; font-size: 12px; }
+.table-course-flow__head small { color: #637487; font-size: 12px; }
+.table-course-flow__steps { display: flex; flex-wrap: wrap; gap: 6px; }
+.table-course-flow__steps span {
+  min-height: 30px;
+  padding: 6px 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.table-course-flow__steps .is-held { border-style: dashed; color: #7c5b17; background: #fffbeb; }
+.table-course-flow__steps .is-pending { color: #1e40af; border-color: #bfdbfe; background: #eff6ff; }
+.table-course-flow__steps .is-in_progress { color: #9a3412; border-color: #fed7aa; background: #fff7ed; }
+.table-course-flow__steps .is-ready { color: #166534; border-color: #bbf7d0; background: #f0fdf4; }
+.table-service-actions .table-course-flow__release {
+  min-height: 38px;
+  background: #173f73;
+  border-color: #173f73;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .table-service-actions { grid-template-columns: 1fr; }
+  .table-service-actions button,
+  .table-service-actions a { width: 100%; grid-column: auto; }
+  .table-course-flow { grid-template-columns: 1fr; }
+  .table-course-flow__head { grid-column: auto; }
+  .table-service-actions .table-course-flow__release { width: 100%; }
+}
+
+.menu-import-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 14px;
+  border-color: #b9d9d2;
+  background: linear-gradient(135deg, #f0fdfa, #fff);
+}
+.menu-import-card > div:first-child { display: grid; gap: 4px; }
+.menu-import-card > div:first-child > span { color: #0f766e; font-size: 11px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+.menu-import-card h2 { margin: 0; color: #102a43; font-size: 20px; }
+.menu-import-card p { margin: 0; color: #526477; font-size: 13px; }
+.menu-import-actions { display: flex; gap: 8px; align-items: center; }
+.menu-import-actions label { cursor: pointer; }
+.menu-import-actions input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.menu-import-preview {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #cfe8e2;
+}
+.menu-import-preview > div { display: grid; gap: 2px; }
+.menu-import-preview span,
+.menu-import-preview small { color: #526477; }
+.menu-import-preview small { font-size: 12px; }
+
+@media (max-width: 720px) {
+  .menu-import-card,
+  .menu-import-preview { grid-template-columns: 1fr; }
+  .menu-import-actions { display: grid; grid-template-columns: 1fr; }
+  .menu-import-actions .management-btn,
+  .menu-import-preview .management-btn { width: 100%; }
+}

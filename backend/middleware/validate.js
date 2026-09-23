@@ -37,6 +37,7 @@ export function validatePublicOrderPayload(req, res, next) {
       menuItemId: text(item?.menuItemId, 120),
       quantity: positiveInt(item?.quantity, 50),
       notes: text(item?.notes, 300),
+      courseNumber: positiveInt(item?.courseNumber ?? 1, 4) || 1,
     }))
     .filter((item) => item.menuItemId && item.quantity);
 

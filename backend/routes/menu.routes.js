@@ -3,6 +3,7 @@ import {
   createMenuItem,
   deleteMenuItem,
   getMenuItems,
+  importMenuItems,
   getMenuStockHistory,
   getPublicMenu,
   updateMenuStock,
@@ -15,6 +16,7 @@ const router = express.Router();
 
 router.get("/", requireAuth, requireActiveSubscription, requireRole(["owner", "admin"]), getMenuItems);
 router.post("/", requireAuth, requireActiveSubscription, requireRole(["owner", "admin"]), createMenuItem);
+router.post("/import", requireAuth, requireActiveSubscription, requireRole(["owner", "admin"]), importMenuItems);
 router.get("/:id/stock", requireAuth, requireActiveSubscription, requireRole(["owner", "admin"]), getMenuStockHistory);
 router.post("/:id/stock", requireAuth, requireActiveSubscription, requireRole(["owner", "admin"]), updateMenuStock);
 router.patch("/:id", requireAuth, requireActiveSubscription, requireRole(["owner", "admin"]), updateMenuItem);

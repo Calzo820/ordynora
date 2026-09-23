@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,8 +28,9 @@ import { handleStripeWebhook } from "./controllers/payment.controller.js";
 import prisma from "./lib/prisma.js";
 import { validateEnvironment } from "./lib/env.js";
 import { logError } from "./lib/logger.js";
-import { createRateLimiter } from "./lib/rateLimit.js";
+import { createRateLimiter, publicOrderRateLimitKey } from "./lib/rateLimit.js";
 import { validateJsonBody } from "./middleware/validateJson.js";
+import { requestContext } from "./middleware/requestContext.js";
 import { startBackupScheduler, stopBackupScheduler } from "./services/backup.service.js";
 import { startHealthMonitor, stopHealthMonitor } from "./services/healthMonitor.service.js";
 
@@ -92,6 +92,10 @@ function isAllowedOrigin(origin) {
 }
 
 const io = new Server(server, {
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000,
+    skipMiddlewares: false,
+  },
   cors: {
     origin(origin, callback) {
       if (isAllowedOrigin(origin)) return callback(null, true);
@@ -108,6 +112,7 @@ io.on("connection", (socket) => {
 
   const token = socket.handshake.auth?.token;
   let authenticated = false;
+  let tokenExpiryTimer = null;
   if (token) {
     try {
       const decoded = jwt.verify(String(token), process.env.JWT_SECRET);
@@ -117,6 +122,14 @@ io.on("connection", (socket) => {
         socket.data.restaurantId = decoded.restaurantId;
         socket.data.role = decoded.role;
         authenticated = true;
+        if (decoded.exp) {
+          const remainingMs = Math.max(0, decoded.exp * 1000 - Date.now());
+          tokenExpiryTimer = setTimeout(() => {
+            socket.emit("auth-required", { message: "Sessione live scaduta: riconnessione in corso" });
+            socket.disconnect(true);
+          }, remainingMs);
+          tokenExpiryTimer.unref?.();
+        }
       }
     } catch {
       authenticated = false;
@@ -146,19 +159,18 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     clearInterval(heartbeat);
+    if (tokenExpiryTimer) clearTimeout(tokenExpiryTimer);
     devLog(`Socket disconnesso: ${socket.id}`);
   });
 });
 
 app.disable("x-powered-by");
 
+app.use(requestContext);
 app.use((req, res, next) => {
-  const requestId = crypto.randomUUID();
-  req.requestId = requestId;
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "no-referrer");
-  res.setHeader("X-Request-Id", requestId);
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), browsing-topics=()");
   res.setHeader(
     "Content-Security-Policy",
@@ -200,7 +212,18 @@ app.use("/auth/forgot-password", createRateLimiter({ windowMs: 15 * 60 * 1000, m
 app.use("/auth/reset-password", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 10, keyPrefix: "auth-reset" }));
 app.use("/auth/resend-verification", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 5, keyPrefix: "auth-resend" }));
 app.use("/demo/ensure", createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 5, keyPrefix: "demo-ensure" }));
-app.post("/orders/public", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 20, keyPrefix: "public-order-create" }));
+app.post("/orders/public", createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  maxRequests: 300,
+  keyPrefix: "public-order-create-ip",
+  keyBuilder: (req) => String(req.ip || "no-ip"),
+}));
+app.post("/orders/public", createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  maxRequests: 30,
+  keyPrefix: "public-order-create-table",
+  keyBuilder: publicOrderRateLimitKey,
+}));
 app.get("/orders/public/:token", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 180, keyPrefix: "public-order-status" }));
 app.post("/orders/public/:token/request-bill", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 8, keyPrefix: "public-order-bill" }));
 app.post("/orders/public/:token/call-staff", createRateLimiter({ windowMs: 5 * 60 * 1000, maxRequests: 8, keyPrefix: "public-order-staff" }));

@@ -15,10 +15,11 @@ function differenzaMinuti(timestamp) {
   return Math.max(0, Math.floor((Date.now() - new Date(timestamp).getTime()) / 60000));
 }
 
-function mapItemNoteToServizio(item) {
+function getItemCourse(item) {
+  const structured = Number(item?.courseNumber || 0);
+  if (structured >= 1 && structured <= 4) return structured;
   const note = (item?.notes || "").toLowerCase().trim();
-  if (note.includes("dopo")) return "dopo";
-  return "subito";
+  return note.includes("dopo") ? 2 : 1;
 }
 
 function getPiattiCucina(ordine) {
@@ -43,10 +44,6 @@ function getPrioritaOrdineLabel(ordine) {
   if (ordine.status === "in_progress") return "In corso";
   if (ordine.status === "ready") return "Pronto";
   return "Attivo";
-}
-
-function servizioRank(servizio) {
-  return (servizio || "subito") === "subito" ? 0 : 1;
 }
 
 function quantitaTotale(lista) {
@@ -163,12 +160,13 @@ export default function Cucina() {
             nome: p.nameSnapshot,
             qty: p.quantity,
             stato: ordine.status,
-            servizio: mapItemNoteToServizio(p),
+            courseNumber: getItemCourse(p),
+            servizio: getItemCourse(p) > 1 ? "dopo" : "subito",
             categoria: p.categorySnapshot || "Cucina",
             nota: p.notes || "",
           }))
           .sort((a, b) => {
-            const byServizio = servizioRank(a.servizio) - servizioRank(b.servizio);
+            const byServizio = a.courseNumber - b.courseNumber;
             if (byServizio !== 0) return byServizio;
             return String(a.nome || "").localeCompare(String(b.nome || ""), "it", { numeric: true });
           });

@@ -48,3 +48,16 @@ export function createRateLimiter({ windowMs = 60000, maxRequests = 60, keyPrefi
     return next();
   };
 }
+
+function safeKeyPart(value, fallback = "unknown") {
+  const normalized = String(value || "").trim().toLowerCase().slice(0, 160);
+  return normalized || fallback;
+}
+
+export function publicOrderRateLimitKey(req) {
+  return [
+    safeKeyPart(req.ip, "no-ip"),
+    safeKeyPart(req.body?.restaurantSlug || req.body?.restaurantId, "no-restaurant"),
+    safeKeyPart(req.body?.tableToken || req.body?.tableId, "no-table"),
+  ].join(":");
+}

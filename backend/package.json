@@ -20,7 +20,9 @@
     "check:migrations": "prisma migrate status --schema=./prisma/schema.prisma",
     "backup:run": "node scripts/backup-database.js",
     "backup:verify": "node scripts/verify-backup.js",
-    "test:service": "node scripts/e2e-service-flow.js"
+    "test:service": "node scripts/e2e-service-flow.js",
+    "seed:load:100": "node scripts/seed-load-100-restaurants.js",
+    "test:load:100": "node scripts/load-100-restaurants.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -38,6 +40,6 @@
     "supertest": "^7.2.2"
   },
   "engines": {
-    "node": "20"
+    "node": "22.x"
   }
 }

@@ -46,6 +46,22 @@ function orderKey(slug, token) {
   return `cliente_order_${slug}_${token}`;
 }
 
+function courseKey(slug, token) {
+  return `cliente_courses_${slug}_${token}`;
+}
+
+function menuCacheKey(slug, token) {
+  return `ordynora_menu_cache_${slug}_${token}`;
+}
+
+function defaultCourseNumber(item) {
+  if (item?.preparationArea === "bar") return 1;
+  const category = String(item?.category || item?.categoria || "").toLocaleLowerCase("it");
+  if (/dolc|dessert|frutta|caff/.test(category)) return 3;
+  if (/second|contorn/.test(category)) return 2;
+  return 1;
+}
+
 function normalizeAllergens(value) {
   if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
   return String(value || "")
@@ -65,6 +81,7 @@ function normalizeItem(item) {
     allergens: normalizeAllergens(item.allergens || item.allergeni),
     isFeatured: Boolean(item.isFeatured),
     preparationArea: item.preparationArea || "kitchen",
+    defaultCourseNumber: Number(item.courseNumber || 0) || defaultCourseNumber(item),
   };
 }
 
@@ -110,7 +127,7 @@ function getCategoryCounts(items) {
   }, {});
 }
 
-function ProductCard({ item, quantity, note, onAdd, onRemove, onNoteChange }) {
+function ProductCard({ item, quantity, note, courseNumber, onAdd, onRemove, onNoteChange, onCourseChange }) {
   const hasImage = Boolean(item.imageUrl);
 
   return (
@@ -139,12 +156,25 @@ function ProductCard({ item, quantity, note, onAdd, onRemove, onNoteChange }) {
         ) : null}
 
         {quantity > 0 ? (
-          <input
-            className="cm-item-note"
-            value={note}
-            onChange={(event) => onNoteChange(item.id, event.target.value)}
-            placeholder="Note per questo piatto, es. senza cipolla"
-          />
+          <div className="cm-item-options">
+            {item.preparationArea === "kitchen" ? (
+              <label className="cm-course-select">
+                <span>Uscita</span>
+                <select value={courseNumber} onChange={(event) => onCourseChange(item.id, Number(event.target.value))}>
+                  <option value="1">Prima portata</option>
+                  <option value="2">Seconda portata</option>
+                  <option value="3">Terza portata / dolce</option>
+                  <option value="4">Uscita finale</option>
+                </select>
+              </label>
+            ) : null}
+            <input
+              className="cm-item-note"
+              value={note}
+              onChange={(event) => onNoteChange(item.id, event.target.value)}
+              placeholder="Note per questo piatto, es. senza cipolla"
+            />
+          </div>
         ) : null}
 
         <div className={quantity > 0 ? "cm-product-actions" : "cm-product-actions is-simple"}>
@@ -209,6 +239,8 @@ export default function Cliente() {
   const [activeCategory, setActiveCategory] = useState("");
   const [cart, setCart] = useState({});
   const [itemNotes, setItemNotes] = useState({});
+  const [itemCourses, setItemCourses] = useState({});
+  const [offlineMenu, setOfflineMenu] = useState(false);
   const [query, setQuery] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [order, setOrder] = useState(null);
@@ -283,8 +315,23 @@ export default function Cliente() {
         setTable(data.table || { name: "Tavolo", qrToken: tableToken });
         setItems(mapped);
         setActiveCategory(getCategories(mapped)[0] || "Menu");
+        setOfflineMenu(false);
+        localStorage.setItem(menuCacheKey(slug, tableToken), JSON.stringify({ data, savedAt: Date.now() }));
       } catch (err) {
-        if (active) setError(err.message || "Menu non disponibile");
+        if (!active) return;
+        try {
+          const cached = JSON.parse(localStorage.getItem(menuCacheKey(slug, tableToken)) || "null");
+          const mapped = (cached?.data?.items || []).map(normalizeItem);
+          if (!mapped.length) throw new Error("Cache menu vuota");
+          setRestaurant(cached.data.restaurant || { name: "Ristorante", slug, logoUrl: "", primaryColor: "#0f172a" });
+          setTable(cached.data.table || { name: "Tavolo", qrToken: tableToken });
+          setItems(mapped);
+          setActiveCategory(getCategories(mapped)[0] || "Menu");
+          setOfflineMenu(true);
+          setError("");
+        } catch {
+          setError(err.message || "Menu non disponibile");
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -300,6 +347,8 @@ export default function Cliente() {
     try {
       const savedCart = JSON.parse(localStorage.getItem(cartKey(slug, tableToken)) || "{}");
       setCart(savedCart && typeof savedCart === "object" ? savedCart : {});
+      const savedCourses = JSON.parse(localStorage.getItem(courseKey(slug, tableToken)) || "{}");
+      setItemCourses(savedCourses && typeof savedCourses === "object" ? savedCourses : {});
       const savedOrder = JSON.parse(localStorage.getItem(orderKey(slug, tableToken)) || "null");
       if (savedOrder?.items) setOrder(savedOrder);
     } catch {
@@ -310,6 +359,10 @@ export default function Cliente() {
   useEffect(() => {
     localStorage.setItem(cartKey(slug, tableToken), JSON.stringify(cart));
   }, [cart, slug, tableToken]);
+
+  useEffect(() => {
+    localStorage.setItem(courseKey(slug, tableToken), JSON.stringify(itemCourses));
+  }, [itemCourses, slug, tableToken]);
 
   useEffect(() => {
     const token = order?.publicToken;
@@ -384,10 +437,15 @@ export default function Cliente() {
     return Object.entries(cart)
       .map(([id, quantity]) => {
         const item = items.find((product) => product.id === id);
-        return item ? { ...item, quantity: Number(quantity || 0), note: itemNotes[id] || "" } : null;
+        return item ? {
+          ...item,
+          quantity: Number(quantity || 0),
+          note: itemNotes[id] || "",
+          courseNumber: Number(itemCourses[id] || item.defaultCourseNumber || 1),
+        } : null;
       })
       .filter((item) => item && item.quantity > 0);
-  }, [cart, itemNotes, items]);
+  }, [cart, itemCourses, itemNotes, items]);
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
@@ -395,6 +453,11 @@ export default function Cliente() {
 
   function addItem(id) {
     setCart((prev) => ({ ...prev, [id]: Number(prev[id] || 0) + 1 }));
+    setItemCourses((prev) => {
+      if (prev[id]) return prev;
+      const item = items.find((product) => product.id === id);
+      return { ...prev, [id]: item?.defaultCourseNumber || 1 };
+    });
   }
 
   function removeItem(id) {
@@ -412,11 +475,21 @@ export default function Cliente() {
         delete next[id];
         return next;
       });
+      setItemCourses((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
     }
   }
 
   function updateItemNote(id, note) {
     setItemNotes((prev) => ({ ...prev, [id]: note.slice(0, 160) }));
+  }
+
+  function updateItemCourse(id, courseNumber) {
+    const normalized = Math.min(4, Math.max(1, Number(courseNumber || 1)));
+    setItemCourses((prev) => ({ ...prev, [id]: normalized }));
   }
 
   async function submitOrder() {
@@ -430,7 +503,12 @@ export default function Cliente() {
         tableToken,
         customerName: "",
         notes: "",
-        items: cartItems.map((item) => ({ menuItemId: item.id, quantity: item.quantity, notes: item.note || "" })),
+        items: cartItems.map((item) => ({
+          menuItemId: item.id,
+          quantity: item.quantity,
+          notes: item.note || "",
+          courseNumber: item.courseNumber,
+        })),
       };
       const fingerprint = createOrderFingerprint(payload);
       if (!guardDoubleSubmit(fingerprint)) {
@@ -478,6 +556,7 @@ export default function Cliente() {
           priceSnapshot: item.price,
           categorySnapshot: item.category,
           notes: item.note || "",
+          courseNumber: item.courseNumber,
         })),
         restaurantName: createdOrder.restaurantName || restaurant.name,
         tableName: createdOrder.tableName || table.name,
@@ -487,9 +566,11 @@ export default function Cliente() {
       setOrder(nextOrder);
       setCart({});
       setItemNotes({});
+      setItemCourses({});
       setCartOpen(false);
       setShowMenuAfterOrder(false);
       localStorage.removeItem(cartKey(slug, tableToken));
+      localStorage.removeItem(courseKey(slug, tableToken));
       localStorage.setItem(orderKey(slug, tableToken), JSON.stringify(nextOrder));
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
@@ -589,6 +670,7 @@ export default function Cliente() {
                 <span>
                   {item.nameSnapshot || item.name} x{item.quantity}
                   {item.notes ? <small>{item.notes}</small> : null}
+                  {Number(item.courseNumber || 1) > 1 ? <small>Portata {item.courseNumber}</small> : null}
                 </span>
                 <strong>{money(Number(item.priceSnapshot || item.price || 0) * Number(item.quantity || 1))}</strong>
               </div>
@@ -708,6 +790,13 @@ export default function Cliente() {
         </section>
       ) : null}
 
+      {offlineMenu ? (
+        <div className="cm-offline-menu-note" role="status">
+          <b>Menu disponibile offline</b>
+          <span>Puoi scegliere i piatti; l'ordine verrà inviato appena torna la connessione.</span>
+        </div>
+      ) : null}
+
       <section className="cm-search">
         <input
           value={query}
@@ -748,9 +837,11 @@ export default function Cliente() {
             item={item}
             quantity={Number(cart[item.id] || 0)}
             note={itemNotes[item.id] || ""}
+            courseNumber={Number(itemCourses[item.id] || item.defaultCourseNumber || 1)}
             onAdd={addItem}
             onRemove={removeItem}
             onNoteChange={updateItemNote}
+            onCourseChange={updateItemCourse}
           />
         )) : (
           <div className="cm-empty small cm-no-results">
@@ -781,6 +872,7 @@ export default function Cliente() {
               <span>
                 {item.name}
                 {item.note ? <small>{item.note}</small> : null}
+                {Number(item.courseNumber || 1) > 1 ? <small>Portata {item.courseNumber}</small> : null}
               </span>
               <div>
                 <button type="button" onClick={() => removeItem(item.id)}>-</button>

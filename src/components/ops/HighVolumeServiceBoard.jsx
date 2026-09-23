@@ -22,6 +22,12 @@ function getItemService(item) {
   return (item.servizio || item.service || "subito") === "dopo" ? "dopo" : "subito";
 }
 
+function getItemCourse(item) {
+  const value = Number(item.courseNumber || 0);
+  if (value >= 1 && value <= 4) return value;
+  return getItemService(item) === "dopo" ? 2 : 1;
+}
+
 function formatTime(timestamp) {
   if (!timestamp) return "--:--";
   return new Date(timestamp).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
@@ -37,9 +43,9 @@ function getOrderStatus(order) {
 }
 
 function getActionLabel(status, readyLabel) {
-  if (status === "pending") return "Inizia";
-  if (status === "in_progress") return readyLabel || "Pronto";
-  return "Al pass";
+  if (status === "pending") return "Inizia preparazione";
+  if (status === "in_progress") return readyLabel ? `Segna ${readyLabel.toLowerCase()}` : "Segna pronto";
+  return "Pronto al pass";
 }
 
 function getSlaTone(minutes, status, warnAfter, lateAfter) {
@@ -65,16 +71,15 @@ function formatTableTitle(order) {
 }
 
 function serviceSummary(items) {
-  const subito = items
-    .filter((item) => getItemService(item) === "subito")
-    .reduce((sum, item) => sum + getItemQty(item), 0);
-  const dopo = items
-    .filter((item) => getItemService(item) === "dopo")
-    .reduce((sum, item) => sum + getItemQty(item), 0);
-
-  if (dopo > 0 && subito > 0) return `${subito} subito - ${dopo} dopo`;
-  if (dopo > 0) return `${dopo} dopo`;
-  return `${subito || items.length} subito`;
+  const courses = new Map();
+  items.forEach((item) => {
+    const course = getItemCourse(item);
+    courses.set(course, (courses.get(course) || 0) + getItemQty(item));
+  });
+  return [...courses.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([course, quantity]) => `${quantity} in portata ${course}`)
+    .join(" · ") || `${items.length} articoli`;
 }
 
 function ServiceOrderCard({ order, itemsKey, updating, onNext, onBack, onPrint, readyLabel, warnAfter, lateAfter }) {
@@ -113,7 +118,7 @@ function ServiceOrderCard({ order, itemsKey, updating, onNext, onBack, onPrint, 
           <div className="kds-ticket__item" key={`${order.id}-${item.id || index}`}>
             <b>{getItemQty(item)}x</b>
             <span>{getItemName(item)}</span>
-            {getItemService(item) === "dopo" ? <em>Dopo</em> : null}
+            {getItemCourse(item) > 1 ? <em>Portata {getItemCourse(item)}</em> : null}
             {item.notes || item.nota || item.notaPiatto ? <small>{item.notes || item.nota || item.notaPiatto}</small> : null}
           </div>
         ))}
@@ -237,7 +242,7 @@ export default function HighVolumeServiceBoard({
               Auto stampa {autoPrint ? "ON" : "OFF"}
             </button>
           ) : null}
-          <button type="button" onClick={() => setDense((value) => !value)}>{dense ? "Comoda" : "Densa"}</button>
+          <button type="button" onClick={() => setDense((value) => !value)}>{dense ? "Schede grandi" : "Vista compatta"}</button>
         </div>
       </section>
 
@@ -270,7 +275,7 @@ export default function HighVolumeServiceBoard({
       {loading ? <div className="kds-empty">Caricamento comande...</div> : null}
 
       {!loading && filteredOrders.length === 0 ? (
-        <div className="kds-empty">Nessuna comanda da gestire.</div>
+        <div className="kds-empty"><b>Nessuna comanda da gestire</b><span>Quando arriva un ordine comparirà in “Nuovi”. Premi “Inizia preparazione”, poi “Segna pronto”.</span></div>
       ) : null}
 
       {!loading && filteredOrders.length > 0 ? (

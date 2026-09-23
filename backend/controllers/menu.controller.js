@@ -203,6 +203,69 @@ export const createMenuItem = async (req, res) => {
   }
 };
 
+export const importMenuItems = async (req, res) => {
+  try {
+    const rows = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!rows.length) return res.status(400).json({ message: "Nessun prodotto da importare" });
+    if (rows.length > 500) return res.status(413).json({ message: "Massimo 500 prodotti per importazione" });
+
+    const normalizedRows = rows.map((row, index) => {
+      try {
+        const data = buildMenuItemData(row || {});
+        if (!data.name || data.price === undefined) throw new Error("nome e prezzo sono obbligatori");
+        if (!data.preparationArea) data.preparationArea = "kitchen";
+        if (!data.category) data.category = "Menu";
+        return data;
+      } catch (error) {
+        const validationError = new Error(`Riga ${index + 2}: ${error.message}`);
+        validationError.code = "IMPORT_VALIDATION";
+        throw validationError;
+      }
+    });
+
+    const uniqueRows = new Map();
+    normalizedRows.forEach((row) => {
+      uniqueRows.set(`${row.name.toLocaleLowerCase("it")}::${String(row.category || "").toLocaleLowerCase("it")}`, row);
+    });
+
+    const result = await prisma.$transaction(async (tx) => {
+      const existing = await tx.menuItem.findMany({
+        where: { restaurantId: req.user.restaurantId, isDeleted: false },
+        select: { id: true, name: true, category: true },
+      });
+      const existingByKey = new Map(existing.map((item) => [
+        `${item.name.toLocaleLowerCase("it")}::${String(item.category || "").toLocaleLowerCase("it")}`,
+        item,
+      ]));
+      let created = 0;
+      let updated = 0;
+      for (const [key, data] of uniqueRows) {
+        const current = existingByKey.get(key);
+        if (current) {
+          await tx.menuItem.update({ where: { id: current.id }, data });
+          updated += 1;
+        } else {
+          await tx.menuItem.create({ data: { restaurantId: req.user.restaurantId, ...data } });
+          created += 1;
+        }
+      }
+      await writeAudit(tx, req, {
+        action: "menu.imported",
+        entityType: "menu",
+        metadata: { received: rows.length, unique: uniqueRows.size, created, updated },
+      });
+      return { created, updated, total: uniqueRows.size };
+    }, { timeout: 20000 });
+
+    emitMenuUpdate(req, null, "imported");
+    return res.json({ message: `${result.total} prodotti importati`, ...result });
+  } catch (error) {
+    console.error("importMenuItems error:", error);
+    const status = error?.code === "IMPORT_VALIDATION" ? 400 : 500;
+    return res.status(status).json({ message: error.message || "Importazione menu non riuscita" });
+  }
+};
+
 export const updateMenuItem = async (req, res) => {
   try {
     const { id } = req.params;

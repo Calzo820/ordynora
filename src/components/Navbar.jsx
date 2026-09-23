@@ -5,6 +5,7 @@ import { ORDYNORA_LOGO_URL as logoOrdynora } from "../lib/brand";
 import { getRoleLabel, isAdminRole, isSuperAdminUser, normalizeRole } from "../lib/roles";
 import { logoutSession } from "../lib/session";
 import { isPinStaffUser } from "../lib/staffDevice";
+import { getQuickGuide, quickGuideStorageKey } from "../lib/uxGuidance";
 
 function getRistoranteAttivo() {
   return localStorage.getItem("ristorante_attivo") || "";
@@ -72,7 +73,17 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [installMessage, setInstallMessage] = useState("");
+  const [guideOpen, setGuideOpen] = useState(() => {
+    const storedRole = normalizeRole(getUser()?.role);
+    return !localStorage.getItem(quickGuideStorageKey(storedRole));
+  });
   const pwa = usePwaInstall();
+  const quickGuide = getQuickGuide(role);
+
+  function closeGuide() {
+    localStorage.setItem(quickGuideStorageKey(role), "seen");
+    setGuideOpen(false);
+  }
 
   const restaurantName = isSuperAdmin
     ? "Piattaforma SaaS"
@@ -112,6 +123,17 @@ export default function Navbar() {
   }, [open]);
 
   useEffect(() => {
+    if (!guideOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") closeGuide();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [guideOpen, role]);
+
+  useEffect(() => {
     setOpen(false);
   }, [location.pathname, location.search]);
 
@@ -120,14 +142,14 @@ export default function Navbar() {
     : isSuperAdmin
       ? [{ to: "/super-admin", label: "SuperAdmin", match: ["/super-admin"] }]
       : [
-          isAdmin && { to: "/dashboard", label: "Dashboard", match: ["/dashboard"] },
-          canKitchen && !impersonating && { to: "/cucina", label: isAdmin ? "Servizio" : "Cucina", match: ["/cucina"] },
-          canBar && { to: "/bar", label: "Bar", match: ["/bar"] },
-          canCashier && !impersonating && { to: "/cassa", label: "Cassa", match: ["/cassa"] },
-          canTables && { to: "/tavoli", label: isWaiter ? "Sala" : "Tavoli", match: ["/tavoli"] },
-          isAdmin && { to: "/admin?tab=menu", label: "Menu", match: ["/admin"], adminTab: "menu" },
-          isAdmin && !impersonating && { to: "/statistiche", label: "Statistiche", match: ["/statistiche"] },
-          isAdmin && !impersonating && { to: "/storico", label: "Storico", match: ["/storico"] },
+          canTables && { to: "/tavoli", label: "Sala e tavoli", shortLabel: "Sala", icon: "SA", section: "Servizio", match: ["/tavoli"] },
+          canKitchen && !impersonating && { to: "/cucina", label: "Cucina", icon: "CU", section: "Servizio", match: ["/cucina"] },
+          canBar && { to: "/bar", label: "Bar", icon: "BA", section: "Servizio", match: ["/bar"] },
+          canCashier && !impersonating && { to: "/cassa", label: "Cassa", icon: "CA", section: "Servizio", match: ["/cassa"] },
+          isAdmin && { to: "/dashboard", label: "Dashboard", icon: "DB", section: "Gestione", match: ["/dashboard"] },
+          isAdmin && { to: "/admin?tab=menu", label: "Menu e prodotti", icon: "ME", section: "Gestione", match: ["/admin"], adminTab: "menu" },
+          isAdmin && !impersonating && { to: "/statistiche", label: "Statistiche", icon: "ST", section: "Gestione", match: ["/statistiche"] },
+          isAdmin && !impersonating && { to: "/storico", label: "Storico ordini", icon: "OR", section: "Gestione", match: ["/storico"] },
         ].filter(Boolean);
 
   const settingsLinks = !logged || !isAdmin || isSuperAdmin
@@ -362,10 +384,14 @@ export default function Navbar() {
         </div>
 
         <nav className="em-sidebar__nav">
-          {links.map((link) => (
-            <Link key={link.to} to={link.to} onClick={handleNavigate} aria-current={isActive(link) ? "page" : undefined} className={isActive(link) ? "em-sidebar__link is-active" : "em-sidebar__link"}>
-              <span>{link.label}</span>
-            </Link>
+          {links.map((link, index) => (
+            <div className="em-sidebar__link-wrap" key={link.to}>
+              {link.section && links[index - 1]?.section !== link.section ? <span className="em-sidebar__section">{link.section}</span> : null}
+              <Link to={link.to} onClick={handleNavigate} aria-current={isActive(link) ? "page" : undefined} className={isActive(link) ? "em-sidebar__link is-active" : "em-sidebar__link"}>
+                {link.icon ? <i className="em-sidebar__link-icon" aria-hidden="true">{link.icon}</i> : null}
+                <span>{link.label}</span>
+              </Link>
+            </div>
           ))}
 
           {settingsLinks.length ? (
@@ -408,6 +434,7 @@ export default function Navbar() {
             </div>
           </div>
           <div className="em-sidebar__actions">
+            {!isSuperAdmin ? <button className="em-sidebar__btn em-sidebar__btn--guide" type="button" onClick={() => setGuideOpen(true)}>Come si usa</button> : null}
             {!pwa.installed ? <button className="em-sidebar__btn em-sidebar__btn--install" type="button" onClick={handleInstallClick}>{pwa.canPrompt ? "Installa app" : "Guida installazione"}</button> : null}
             {installMessage ? <div className="em-sidebar__install-help">{installMessage}</div> : null}
             {impersonating ? <button className="em-sidebar__btn em-sidebar__btn--green" onClick={restorePlatformSession}>SuperAdmin</button> : null}
@@ -417,6 +444,27 @@ export default function Navbar() {
           </div>
         </div>
       </aside>
+
+      {guideOpen && !isSuperAdmin ? (
+        <div className="ordy-quick-guide-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeGuide(); }}>
+          <section className="ordy-quick-guide" role="dialog" aria-modal="true" aria-labelledby="ordy-guide-title">
+            <button className="ordy-quick-guide__close" type="button" aria-label="Chiudi guida" onClick={closeGuide}>×</button>
+            <span>{quickGuide.eyebrow}</span>
+            <h2 id="ordy-guide-title">{quickGuide.title}</h2>
+            <p>{quickGuide.intro}</p>
+            <div className="ordy-quick-guide__steps">
+              {quickGuide.steps.map((step, index) => (
+                <Link key={`${step.title}-${index}`} to={step.to} onClick={closeGuide}>
+                  <i>{index + 1}</i>
+                  <span><b>{step.title}</b><small>{step.text}</small></span>
+                  <em>Apri</em>
+                </Link>
+              ))}
+            </div>
+            <button className="ordy-quick-guide__done" type="button" onClick={closeGuide}>Ho capito, inizia il turno</button>
+          </section>
+        </div>
+      ) : null}
     </>
   );
 }

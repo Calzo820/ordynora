@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import { apiGet } from "../lib/api";
 import { appShellStyle, glowPageStyle } from "../styles/pageStyles";
@@ -103,11 +103,6 @@ export default function Statistiche() {
   const maxMargin = Math.max(0, ...topProducts.map((row) => number(row.margin)));
   const maxPayment = Math.max(0, ...byPayment.map((row) => number(row.revenue)));
   const hasData = number(kpis.ordersRange) > 0;
-  const topProfitProduct = useMemo(
-    () => [...topProducts].sort((a, b) => number(b.margin) - number(a.margin))[0] || null,
-    [topProducts]
-  );
-
   return (
     <div style={glowPageStyle}>
       <Navbar />
@@ -155,16 +150,16 @@ export default function Statistiche() {
                 <>
                   <section className="report-insight-grid report-insight-grid--four">
                     <article className="report-insight report-insight--green">
-                      <span>Preparazione media</span><b>{number(kpis.averagePreparationMinutes).toFixed(0)} min</b><p>Dall'accettazione al piatto pronto.</p>
+                      <span>Tempo cucina</span><b>{number(kpis.averageKitchenMinutes || kpis.averagePreparationMinutes).toFixed(0)} min</b><p>Lavorazione reale dei piatti.</p>
                     </article>
                     <article className="report-insight report-insight--blue">
-                      <span>Servizio completo</span><b>{number(kpis.averageServiceMinutes).toFixed(0)} min</b><p>Dall'ordine al tavolo servito.</p>
+                      <span>Tempo bar</span><b>{number(kpis.averageBarMinutes).toFixed(0)} min</b><p>Lavorazione reale delle bevande.</p>
                     </article>
                     <article className="report-insight report-insight--amber">
                       <span>Annulli e omaggi</span><b>{number(kpis.voidedItems) + number(kpis.complimentaryItems)}</b><p>{kpis.voidedItems || 0} annulli, {kpis.complimentaryItems || 0} omaggi.</p>
                     </article>
                     <article className="report-insight report-insight--violet">
-                      <span>Prodotto più redditizio</span><b>{topProfitProduct?.name || "-"}</b><p>{topProfitProduct ? `${money(topProfitProduct.margin)} di margine stimato` : "Inserisci i costi nel menu"}</p>
+                      <span>Servizio completo</span><b>{number(kpis.averageServiceMinutes).toFixed(0)} min</b><p>Dall'ordine alla consegna al tavolo.</p>
                     </article>
                   </section>
 
