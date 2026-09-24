@@ -4,6 +4,7 @@ import usePwaInstall from "../hooks/usePwaInstall";
 import { ORDYNORA_LOGO_URL as logoOrdynora } from "../lib/brand";
 import { apiGet, apiPost, clearAuthSession, getAuthToken } from "../lib/api";
 import { getHomePathByRole } from "../lib/roles";
+import { isTemporaryServiceFailure } from "../lib/serviceHealth";
 import { persistLoginPayload, refreshSession } from "../lib/session";
 import {
   forgetRestaurantCode,
@@ -13,11 +14,6 @@ import {
   rememberRestaurantCode,
 } from "../lib/staffDevice";
 import "../styles/staff-access.css";
-
-function isTemporaryFailure(error) {
-  return Boolean(error?.transient)
-    || /server.*(?:avvio|temporaneamente)|si sta avviando|non raggiungibile|connessione lenta|riprova tra qualche secondo/i.test(error?.message || "");
-}
 
 export default function StaffAccess() {
   const navigate = useNavigate();
@@ -61,7 +57,7 @@ export default function StaffAccess() {
         if (returnedCode) rememberRestaurantCode(returnedCode);
         if (active) navigate(getHomePathByRole(user.role, user), { replace: true });
       } catch (restoreError) {
-        if (isTemporaryFailure(restoreError) && active) {
+        if (isTemporaryServiceFailure(restoreError) && active) {
           setError(restoreError.message);
         } else {
           clearAuthSession();

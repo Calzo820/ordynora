@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import LocaleSwitcher from "../components/LocaleSwitcher";
 import { useTranslatedContent } from "../hooks/useTranslatedContent";
+import { publicApiGet } from "../lib/api";
 import { ORDYNORA_LOGO_URL as logoOrdynora } from "../lib/brand";
 import restaurantServiceImage from "../assets/landing-restaurant-service-v2.jpg";
 
@@ -169,6 +171,15 @@ export default function Landing() {
   const { content: t, isTranslating } = useTranslatedContent("landing", translations);
   const demoContactUrl = whatsappUrl(t.whatsappMessage);
   const demoEmailUrl = emailUrl(t.emailSubject, t.emailBody);
+
+  useEffect(() => {
+    const lastWarmup = Number(sessionStorage.getItem("ordynora_backend_warmup") || 0);
+    if (Date.now() - lastWarmup < 5 * 60 * 1000) return;
+
+    publicApiGet("/health", {}, { timeoutMs: 45000, retries: 0 })
+      .then(() => sessionStorage.setItem("ordynora_backend_warmup", String(Date.now())))
+      .catch(() => {});
+  }, []);
 
   return (
     <main className="landing-page" aria-busy={isTranslating}>

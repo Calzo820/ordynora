@@ -5,6 +5,7 @@ import { ORDYNORA_LOGO_URL as logoOrdynora } from "../lib/brand";
 import { getRoleLabel, isAdminRole, isSuperAdminUser, normalizeRole } from "../lib/roles";
 import { logoutSession } from "../lib/session";
 import { isPinStaffUser } from "../lib/staffDevice";
+import { clearPlatformSession, hasPlatformSession, restorePlatformSession } from "../lib/superAdminSession";
 import { getQuickGuide, quickGuideStorageKey } from "../lib/uxGuidance";
 
 function getRistoranteAttivo() {
@@ -23,32 +24,14 @@ function isLoggedIn() {
   return !!localStorage.getItem("auth_token");
 }
 
-function hasPlatformSession() {
-  return !!localStorage.getItem("superadmin_platform_session");
-}
-
-function restorePlatformSession() {
-  try {
-    const snapshot = JSON.parse(localStorage.getItem("superadmin_platform_session") || "null");
-    if (!snapshot?.token) return;
-    localStorage.setItem("auth_token", snapshot.token);
-    if (snapshot.user) localStorage.setItem("auth_user", snapshot.user);
-    else localStorage.removeItem("auth_user");
-    if (snapshot.restaurant) localStorage.setItem("auth_restaurant", snapshot.restaurant);
-    else localStorage.removeItem("auth_restaurant");
-    localStorage.removeItem("ristorante_attivo");
-    localStorage.removeItem("restaurant_slug");
-    localStorage.removeItem("restaurant_id");
-    localStorage.removeItem("superadmin_platform_session");
-    window.location.href = "/super-admin";
-  } catch {
-    localStorage.removeItem("superadmin_platform_session");
-  }
+function returnToPlatform() {
+  restorePlatformSession();
+  window.location.href = "/super-admin";
 }
 
 async function logout(destination = "/login") {
   await logoutSession();
-  localStorage.removeItem("superadmin_platform_session");
+  clearPlatformSession();
   window.location.href = destination;
 }
 
@@ -437,7 +420,7 @@ export default function Navbar() {
             {!isSuperAdmin ? <button className="em-sidebar__btn em-sidebar__btn--guide" type="button" onClick={() => setGuideOpen(true)}>Come si usa</button> : null}
             {!pwa.installed ? <button className="em-sidebar__btn em-sidebar__btn--install" type="button" onClick={handleInstallClick}>{pwa.canPrompt ? "Installa app" : "Guida installazione"}</button> : null}
             {installMessage ? <div className="em-sidebar__install-help">{installMessage}</div> : null}
-            {impersonating ? <button className="em-sidebar__btn em-sidebar__btn--green" onClick={restorePlatformSession}>SuperAdmin</button> : null}
+            {impersonating ? <button className="em-sidebar__btn em-sidebar__btn--green" onClick={returnToPlatform}>SuperAdmin</button> : null}
             <button className="em-sidebar__btn" onClick={() => logout(staffDevice ? "/staff" : "/login")}>
               {staffDevice ? "Cambia operatore" : "Esci"}
             </button>

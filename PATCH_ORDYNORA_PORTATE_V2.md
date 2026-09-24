@@ -38,6 +38,6 @@ La migrazione marca come già inviate le righe degli ordini esistenti, evitando 
 
 - ESLint: superato.
 - Build Vite production: superata.
-- Test frontend: 13/13.
+- Test frontend: 24/24.
 - Test backend: 34/34.
 - Schema Prisma: valido.

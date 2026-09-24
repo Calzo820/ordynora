@@ -8,6 +8,11 @@ export function persistLoginPayload(payload) {
     localStorage.setItem("ristorante_attivo", payload.restaurant.name || "");
     localStorage.setItem("restaurant_slug", payload.restaurant.slug || "");
     localStorage.setItem("restaurant_id", payload.restaurant.id || "");
+  } else if (payload && Object.prototype.hasOwnProperty.call(payload, "restaurant")) {
+    localStorage.removeItem("auth_restaurant");
+    localStorage.removeItem("ristorante_attivo");
+    localStorage.removeItem("restaurant_slug");
+    localStorage.removeItem("restaurant_id");
   }
 }
 

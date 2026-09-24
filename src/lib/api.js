@@ -1,3 +1,5 @@
+import { getConnectionFailureMessage } from "./serviceHealth.js";
+
 const VITE_ENV = import.meta.env || {};
 
 export const API_URL = VITE_ENV.VITE_API_URL || "http://localhost:5000";
@@ -48,6 +50,8 @@ export function clearAuthSession() {
   localStorage.removeItem("restaurant_slug");
   localStorage.removeItem("restaurant_id");
   localStorage.removeItem("superadmin_platform_session");
+  localStorage.removeItem("superadmin_mode");
+  localStorage.removeItem("superadmin_original_token");
 }
 
 async function parseResponse(response) {
@@ -148,15 +152,19 @@ async function performFetch(endpoint, options = {}, withAuth = true, attempt = 0
       return performFetch(endpoint, options, withAuth, attempt + 1);
     }
     if (error?.name === "AbortError") {
-      const timeoutError = new Error("Il server si sta avviando. Attendi qualche secondo e riprova.");
+      const timeoutError = new Error(getConnectionFailureMessage({
+        online: typeof navigator === "undefined" || navigator.onLine !== false,
+        timedOut: true,
+      }));
       timeoutError.transient = true;
       dispatchConnectionStatus({ status: "recovering", message: timeoutError.message });
       throw timeoutError;
     }
     if (error?.name === "TypeError" || /failed to fetch|network/i.test(error?.message || "")) {
-      const networkError = new Error("Server in avvio o temporaneamente non disponibile. Riprova tra qualche secondo.");
+      const online = typeof navigator === "undefined" || navigator.onLine !== false;
+      const networkError = new Error(getConnectionFailureMessage({ online }));
       networkError.transient = true;
-      dispatchConnectionStatus({ status: "offline", message: networkError.message });
+      dispatchConnectionStatus({ status: online ? "recovering" : "offline", message: networkError.message });
       throw networkError;
     }
     throw error;

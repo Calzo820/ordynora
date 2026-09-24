@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { apiGet, clearAuthSession, getAuthToken } from "../lib/api";
 import ServiceUnavailable from "../pages/ServiceUnavailable.jsx";
 import { canAccessRole, getHomePathByRole, normalizeRole } from "../lib/roles";
+import { isTemporaryServiceFailure } from "../lib/serviceHealth";
 import { persistLoginPayload, refreshSession } from "../lib/session";
 import { getRememberedRestaurantCode, isPinStaffUser } from "../lib/staffDevice";
 
@@ -46,8 +47,7 @@ function ProtectedRoute({ children, roles = [] }) {
         if (active) setState({ loading: false, allowed, user, serviceError: "", loginPath });
       } catch (error) {
         const message = error?.message || "";
-        const temporaryFailure =
-          /server.*(?:avvio|temporaneamente)|si sta avviando|non raggiungibile|connessione lenta|riprova tra qualche secondo/i.test(message);
+        const temporaryFailure = isTemporaryServiceFailure(error);
         if (temporaryFailure) {
           if (active) setState({ loading: false, allowed: false, user: null, serviceError: message, loginPath });
           return;

@@ -10,6 +10,7 @@ import DashboardTableMap from "../components/dashboard/DashboardTableMap.jsx";
 import DashboardTopProducts from "../components/dashboard/DashboardTopProducts.jsx";
 import { apiGet, publicApiPost, setAuthToken } from "../lib/api";
 import { createRestaurantSocket, playOrderSound } from "../lib/realtime";
+import { hasPlatformSession, restorePlatformSession } from "../lib/superAdminSession";
 import "../styles/dashboard-premium.css";
 
 function getRestaurantName() {
@@ -115,7 +116,7 @@ function Dashboard() {
 
   const restaurantName = getRestaurantName();
   const restaurantSlug = getRestaurantSlug();
-  const isSuperAdminMode = localStorage.getItem("superadmin_mode") === "1" || Boolean(localStorage.getItem("superadmin_platform_session"));
+  const isSuperAdminMode = localStorage.getItem("superadmin_mode") === "1" || hasPlatformSession();
   const isDemoRestaurant = String(restaurantSlug || restaurantName).toLowerCase().includes("demo");
 
   const load = useCallback(async (manual = false) => {
@@ -255,13 +256,7 @@ function Dashboard() {
             <button
               type="button"
               onClick={() => {
-                const snapshot = JSON.parse(localStorage.getItem("superadmin_platform_session") || "null");
-                if (snapshot?.token) localStorage.setItem("auth_token", snapshot.token);
-                if (snapshot?.user) localStorage.setItem("auth_user", snapshot.user);
-                if (snapshot?.restaurant) localStorage.setItem("auth_restaurant", snapshot.restaurant);
-                localStorage.removeItem("superadmin_mode");
-                localStorage.removeItem("superadmin_original_token");
-                localStorage.removeItem("superadmin_platform_session");
+                restorePlatformSession();
                 window.location.href = "/super-admin";
               }}
             >

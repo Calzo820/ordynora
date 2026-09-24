@@ -1,4 +1,4 @@
-const CACHE_NAME = "ordynora-shell-v4";
+const CACHE_NAME = "ordynora-shell-v6";
 const STATIC_SHELL = [
   "/offline.html",
   "/app.webmanifest",

@@ -13,6 +13,8 @@ Ordynora è una piattaforma SaaS per ristoranti che permette ai clienti di ordin
 - Pagamenti e ricevuta/preconto.
 - Multi-ristorante con isolamento dei dati per `restaurantId`.
 - Portate controllate dalla sala: la prima parte subito, le successive vengono chiamate dal cameriere senza duplicazioni.
+- Recupero automatico di backend e database senza cancellare la sessione durante errori temporanei.
+- Pagina PWA offline coerente con la coda ordini e riapertura automatica quando torna la rete.
 
 ## Requisiti
 
@@ -63,6 +65,9 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 - La numerazione ordini usa un contatore atomico per ristorante.
 - Gli importi sono gestiti come `Decimal` nel database.
 - La ricevuta HTML fa escaping dei dati dinamici.
+- Gli errori 5xx, i timeout e i rate limit temporanei non vengono scambiati per credenziali errate.
+- L'accesso **Apri supporto** del Super Admin conserva il ristorante selezionato, verifica nuovamente l'identità piattaforma e ripristina la sessione originale all'uscita.
+- Le dipendenze di produzione frontend e backend superano `npm audit` senza vulnerabilità note.
 
 ## Deploy
 

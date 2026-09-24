@@ -8,6 +8,7 @@ import {
   setAuthToken,
 } from "../lib/api";
 import { getHomePathByRole } from "../lib/roles";
+import { isTemporaryServiceFailure } from "../lib/serviceHealth";
 import "../styles/auth.css";
 
 export default function Login() {
@@ -57,9 +58,9 @@ export default function Login() {
 
   function showError(error, fallback) {
     const message = error?.message || fallback || "Operazione non riuscita.";
-    if (/server.*avviando|server in avvio|temporaneamente non disponibile|render|riprova tra qualche secondo/i.test(message)) {
+    if (isTemporaryServiceFailure(error)) {
       setErrore("");
-      setAvviso("Ordynora non è ancora pronto. Attendi qualche secondo e riprova: le credenziali non sono il problema.");
+      setAvviso(`${message} Le credenziali non sono il problema.`);
       return;
     }
     setAvviso("");

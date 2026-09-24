@@ -1,0 +1,148 @@
+/* Ordynora v7 — recupero automatico senza perdere la sessione. */
+
+.service-recovery-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 4vw, 34px);
+  background:
+    radial-gradient(circle at 12% 12%, rgba(13,148,136,.13), transparent 33%),
+    radial-gradient(circle at 88% 86%, rgba(37,99,235,.10), transparent 34%),
+    #f5f8f7;
+  color: #132238;
+}
+
+.service-recovery-card {
+  width: min(650px, 100%);
+  padding: clamp(24px, 5vw, 42px);
+  border: 1px solid rgba(148,163,184,.3);
+  border-radius: 30px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 32px 90px rgba(15,23,42,.14);
+}
+
+.service-recovery-signal {
+  width: 58px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-radius: 18px;
+  background: #e8f4f1;
+}
+
+.service-recovery-signal i {
+  width: 6px;
+  height: 20px;
+  border-radius: 999px;
+  background: #0f766e;
+  animation: service-signal 1.05s ease-in-out infinite;
+}
+.service-recovery-signal i:nth-child(2) { height: 30px; animation-delay: .12s; }
+.service-recovery-signal i:nth-child(3) { height: 14px; animation-delay: .24s; }
+.service-recovery-signal.is-offline { background: #fef2f2; }
+.service-recovery-signal.is-offline i { background: #b91c1c; animation: none; }
+.service-recovery-signal.is-ready { background: #ecfdf5; }
+.service-recovery-signal.is-ready i { background: #15803d; animation: none; }
+
+.service-recovery-kicker {
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.service-recovery-card h1 {
+  margin: 9px 0 10px;
+  font-size: clamp(30px, 6vw, 46px);
+  line-height: 1.02;
+  letter-spacing: -.045em;
+}
+
+.service-recovery-card > p {
+  max-width: 560px;
+  margin: 0;
+  color: #5b6c7f;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.service-recovery-status {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 24px;
+  padding: 15px;
+  border: 1px solid #dbe5e3;
+  border-radius: 17px;
+  background: #f7faf9;
+}
+
+.service-recovery-status > i {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  border-radius: 50%;
+  background: #0f766e;
+  box-shadow: 0 0 0 5px rgba(15,118,110,.12);
+  animation: service-dot 1.3s ease-in-out infinite;
+}
+.service-recovery-status.is-offline > i { background: #dc2626; box-shadow: 0 0 0 5px rgba(220,38,38,.11); animation: none; }
+.service-recovery-status.is-ready > i { background: #16a34a; box-shadow: 0 0 0 5px rgba(22,163,74,.11); animation: none; }
+.service-recovery-status.is-paused > i { background: #d97706; box-shadow: 0 0 0 5px rgba(217,119,6,.11); animation: none; }
+.service-recovery-status div { display: grid; gap: 3px; }
+.service-recovery-status b { font-size: 14px; line-height: 1.35; }
+.service-recovery-status small { color: #718096; font-weight: 750; }
+
+.service-recovery-details { margin-top: 14px; color: #64748b; font-size: 12px; }
+.service-recovery-details summary { cursor: pointer; font-weight: 850; }
+.service-recovery-details p { margin: 7px 0 0; overflow-wrap: anywhere; }
+
+.service-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 22px;
+}
+.service-recovery-actions button,
+.service-recovery-actions a {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: 1px solid #dbe4ea;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #334155;
+  font: inherit;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+.service-recovery-actions button { border-color: #123f3b; background: #123f3b; color: #fff; }
+.service-recovery-actions button:disabled { opacity: .62; }
+
+@keyframes service-signal {
+  0%, 100% { transform: scaleY(.65); opacity: .65; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+@keyframes service-dot {
+  50% { transform: scale(.72); opacity: .55; }
+}
+
+@media (max-width: 560px) {
+  .service-recovery-page { align-items: end; padding: 10px; }
+  .service-recovery-card { border-radius: 25px 25px 15px 15px; padding: 25px 19px 19px; }
+  .service-recovery-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .service-recovery-actions button { grid-column: 1 / -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .service-recovery-signal i,
+  .service-recovery-status > i { animation: none !important; }
+}

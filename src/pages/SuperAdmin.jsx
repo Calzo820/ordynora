@@ -4,9 +4,8 @@ import {
   apiGet,
   apiPatch,
   apiPost,
-  getAuthToken,
-  setAuthToken,
 } from "../lib/api";
+import { beginSupportSession } from "../lib/superAdminSession";
 import "../styles/superadmin.css";
 
 const PLAN_OPTIONS = ["starter", "growth", "semiannual", "enterprise"];
@@ -83,24 +82,6 @@ function getAlerts(restaurant) {
     alerts.push("Pagamento da verificare");
   }
   return alerts;
-}
-
-function saveRestaurantSession(data) {
-  setAuthToken(data.token);
-  localStorage.setItem("auth_user", JSON.stringify(data.user));
-  localStorage.setItem("auth_restaurant", JSON.stringify(data.restaurant));
-  localStorage.setItem("ristorante_attivo", data.restaurant?.name || "");
-  localStorage.setItem("restaurant_slug", data.restaurant?.slug || "");
-  localStorage.setItem("restaurant_id", data.restaurant?.id || "");
-}
-
-function savePlatformSnapshot() {
-  const snapshot = {
-    token: getAuthToken(),
-    user: localStorage.getItem("auth_user"),
-    restaurant: localStorage.getItem("auth_restaurant"),
-  };
-  localStorage.setItem("superadmin_platform_session", JSON.stringify(snapshot));
 }
 
 function StatCard({ label, value, hint }) {
@@ -297,8 +278,7 @@ export default function SuperAdmin() {
         throw new Error("Risposta impersonificazione non valida");
       }
 
-      savePlatformSnapshot();
-      saveRestaurantSession(data);
+      beginSupportSession(data);
 
       // Hard navigation: forza ProtectedRoute, Navbar e API a leggere subito il nuovo token.
       window.location.assign(targetPath);

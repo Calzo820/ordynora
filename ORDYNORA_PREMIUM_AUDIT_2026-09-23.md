@@ -11,7 +11,7 @@ Il codice modificato supera:
 
 - lint completo;
 - build production Vite;
-- 13/13 test frontend;
+- 24/24 test frontend;
 - 34/34 test backend;
 - validazione schema Prisma;
 - controllo della migrazione per portate e tempi di preparazione.
@@ -100,7 +100,7 @@ La promessa iniziale deve concentrarsi su servizio al tavolo, ruoli semplici, QR
 
 ### Test automatici eseguiti
 
-- Frontend: **13/13 passati**, inclusi sequenza portate, import CSV, coda offline e guide per tutti i ruoli.
+- Frontend: **24/24 passati**, inclusi sequenza portate, import CSV, coda offline, PWA, recupero servizio e guide per tutti i ruoli.
 - Backend: **34/34 passati**, inclusi validazione portate, auth, billing, rate limit Wi-Fi condiviso, sessioni, cache tenant e API smoke.
 - Build production: **passata**.
 - ESLint: **passato**.
@@ -191,6 +191,9 @@ Profilo minimo da provare in una seconda fase: 100 ristoranti × 8 dispositivi l
 - La Dashboard propone quattro accessi immediati alle attività più frequenti e rende cliccabili gli indicatori operativi.
 - La Cassa mostra visivamente la sequenza “scegli tavolo → controlla conto → incassa e chiudi”.
 - Cucina e bar usano verbi espliciti: **Inizia preparazione** e **Segna pronto**.
+- Un errore temporaneo non disconnette più lo staff: Ordynora controlla automaticamente backend e database fino a sei volte e riapre la postazione quando tornano disponibili.
+- La landing avvia un controllo leggero del backend, riducendo l'attesa quando il primo utente apre Login o Demo.
+- La pagina offline PWA distingue rete assente da server lento e rientra automaticamente al ritorno della connessione.
 - Le regole responsive già presenti coprono telefono, tablet portrait/landscape e desktop; la build non contiene larghezze rigide bloccanti nelle nuove viste.
 
 ### Cose ancora da validare con 3 camerieri veri

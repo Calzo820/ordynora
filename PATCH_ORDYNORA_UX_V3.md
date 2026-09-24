@@ -33,4 +33,4 @@ cd ..
 npm run verify
 ```
 
-Risultato atteso: lint e build superati, 13 test frontend e 34 test backend superati.
+Risultato atteso: lint e build superati, 24 test frontend e 34 test backend superati.

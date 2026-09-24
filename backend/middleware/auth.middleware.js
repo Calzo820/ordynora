@@ -1,6 +1,72 @@
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma.js";
 
+function getConfiguredSuperAdminEmails() {
+  return String(process.env.SUPER_ADMIN_EMAILS || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+async function findAuthenticatedUser(userId) {
+  if (!userId) return null;
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, restaurantId: true, role: true, isActive: true },
+  });
+}
+
+export async function resolveAuthenticatedUser(
+  tokenUser,
+  {
+    findUser = findAuthenticatedUser,
+    superAdminEmails = getConfiguredSuperAdminEmails(),
+  } = {}
+) {
+  if (tokenUser?.isSuperAdmin) return tokenUser;
+
+  const currentUser = await findUser(tokenUser?.userId);
+  if (!currentUser?.isActive) return null;
+
+  if (tokenUser?.impersonating) {
+    const configuredEmails = new Set(superAdminEmails.map(normalizeEmail));
+    const currentEmail = normalizeEmail(currentUser.email);
+    const tokenEmail = normalizeEmail(tokenUser.email);
+    const validPlatformIdentity = Boolean(
+      tokenUser.restaurantId
+      && tokenUser.platformUserId
+      && tokenUser.platformUserId === tokenUser.userId
+      && tokenUser.role === "owner"
+      && currentEmail
+      && currentEmail === tokenEmail
+      && configuredEmails.has(currentEmail)
+    );
+
+    if (!validPlatformIdentity) return null;
+
+    return {
+      ...tokenUser,
+      email: currentUser.email,
+      role: "owner",
+      isSuperAdmin: false,
+      impersonating: true,
+    };
+  }
+
+  if (currentUser.restaurantId !== tokenUser?.restaurantId) return null;
+
+  return {
+    ...tokenUser,
+    email: currentUser.email,
+    restaurantId: currentUser.restaurantId,
+    role: currentUser.role,
+  };
+}
+
 function getBearerToken(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) return "";
@@ -27,26 +93,12 @@ export const requireAuth = async (req, res, next) => {
       platformUserId: decoded.platformUserId || null,
     };
 
-    if (tokenUser.isSuperAdmin) {
-      req.user = tokenUser;
-      return next();
-    }
-
-    const currentUser = await prisma.user.findUnique({
-      where: { id: tokenUser.userId },
-      select: { id: true, email: true, restaurantId: true, role: true, isActive: true },
-    });
-
-    if (!currentUser?.isActive || currentUser.restaurantId !== tokenUser.restaurantId) {
+    const authenticatedUser = await resolveAuthenticatedUser(tokenUser);
+    if (!authenticatedUser) {
       return res.status(401).json({ message: "Sessione revocata o account non attivo" });
     }
 
-    req.user = {
-      ...tokenUser,
-      email: currentUser.email,
-      restaurantId: currentUser.restaurantId,
-      role: currentUser.role,
-    };
+    req.user = authenticatedUser;
 
     return next();
   } catch {

@@ -19,6 +19,7 @@ import "./styles/premium-responsive-v2.css";
 import "./styles/mobile-experience-v3.css";
 import "./styles/service-flow-v5.css";
 import "./styles/intuition-v6.css";
+import "./styles/service-recovery-v7.css";
 
 initPwaInstall();
 

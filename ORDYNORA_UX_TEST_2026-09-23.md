@@ -47,7 +47,7 @@ La nuova interfaccia riduce i punti in cui un ristoratore o un membro dello staf
 | Build | Bundle Vite di produzione | Superato |
 | Lint | Regole ESLint | Superato |
 | Backend | Suite Node | 34/34 superati |
-| Frontend | Suite Node | 13/13 superati |
+| Frontend | Suite Node | 24/24 superati |
 
 ## Percorso consigliato al ristoratore
 
