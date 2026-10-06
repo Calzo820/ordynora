@@ -6,6 +6,7 @@ import { apiGet, apiPatch, apiPost } from "../lib/api";
 import { imageFileToDataUrl } from "../lib/imageFiles";
 import { appShellStyle, glowPageStyle } from "../styles/pageStyles";
 import "../styles/onboarding.css";
+import { persistRestaurantMode } from "../lib/restaurantMode";
 
 const PRINT_LAYOUTS = [
   {
@@ -73,7 +74,7 @@ function QrPrintDocument({ preview = false, layout, qrLinks, restaurant }) {
               </div>
               <div className="onb-flyer-qr">
                 <QRCodeSVG value={table.link} size={260} includeMargin />
-                <div><strong>{table.name}</strong><span>Apri la fotocamera e inquadra il QR</span><small>Puoi anche chiedere il conto e pagare dal telefono quando il servizio è attivo.</small></div>
+                <div><strong>{table.name}</strong><span>Apri la fotocamera e inquadra il QR</span><small>Dal telefono puoi ordinare, seguire la preparazione e chiedere il conto.</small></div>
               </div>
               <footer>easy.menu.service@gmail.com · Ordynora</footer>
             </article>
@@ -121,10 +122,12 @@ export default function Onboarding() {
   const [logoUrl, setLogoUrl] = useState("");
   const [savingLogo, setSavingLogo] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [integration, setIntegration] = useState(null);
 
   const restaurant = status?.restaurant;
   const checks = status?.checks || {};
   const counts = status?.counts || {};
+  const integratedMode = restaurant?.operationMode === "integrated";
 
   const commandSteps = [
     {
@@ -209,18 +212,26 @@ export default function Onboarding() {
     return {
       tone: "done",
       title: "Pronto per il servizio",
-      text: "Logo, tavoli, menu e QR sono allineati. Ora puoi provare il flusso con menu cliente, cucina e cassa.",
+      text: integratedMode
+        ? "Logo, tavoli, menu e QR sono allineati. Ora prova menu cliente, cucina, bar e chiusura operativa dalla sala."
+        : "Logo, tavoli, menu e QR sono allineati. Ora puoi provare il flusso con menu cliente, cucina e cassa.",
       actionLabel: "Rivedi QR",
       action: () => setShowQrPreview(true),
     };
-  }, [checks.menu, checks.profile, checks.qr, checks.tables, loading, qrLinks.length]);
+  }, [checks.menu, checks.profile, checks.qr, checks.tables, integratedMode, loading, qrLinks.length]);
 
   async function load() {
     try {
       setError("");
-      const [nextStatus, nextQr] = await Promise.all([apiGet("/onboarding/status"), apiGet("/onboarding/qr-payload")]);
+      const [nextStatus, nextQr, nextIntegration] = await Promise.all([
+        apiGet("/onboarding/status"),
+        apiGet("/onboarding/qr-payload"),
+        apiGet("/integrations/current").catch(() => null),
+      ]);
       setStatus(nextStatus);
       setQrPayload(nextQr);
+      setIntegration(nextIntegration?.integration || null);
+      persistRestaurantMode(nextStatus?.restaurant?.operationMode || nextIntegration?.operationMode || "full");
     } catch (err) {
       setError(err.message || "Errore caricamento setup");
     } finally {
@@ -336,6 +347,26 @@ export default function Onboarding() {
           {message ? <div className="onb-alert success">{message}</div> : null}
           {loading ? <div className="onb-card">Caricamento setup...</div> : null}
 
+          {!loading ? (
+            <section className="onb-integration-choice">
+              <div className="onb-integration-choice__mark">POS</div>
+              <div>
+                <span>Prima di copiare menu e tavoli</span>
+                <h2>Usi già un gestionale?</h2>
+                <p>
+                  Collegalo prima: Ordynora gestirà sala, cucina e bar; il gestionale continuerà con cassa,
+                  scontrini, fatture e contabilità.
+                </p>
+              </div>
+              <div className="onb-integration-choice__action">
+                {integratedMode ? <b>Modalità con gestionale attiva</b> : integration?.status === "connected" ? <b>{integration.providerName} collegato</b> : null}
+                <button className="onb-secondary" type="button" onClick={() => { window.location.href = "/integrazioni"; }}>
+                  {integratedMode || integration?.status === "connected" ? "Controlla collegamento" : "Scegli modalità"}
+                </button>
+              </div>
+            </section>
+          ) : null}
+
           <section className="onb-command-strip">
             {commandSteps.map((step) => (
               <article
@@ -419,7 +450,7 @@ export default function Onboarding() {
             <div>
               <span>Staff opzionale</span>
               <strong>Non serve creare subito più email.</strong>
-              <small>Parti con l'account owner. Aggiungi cucina, bar o cassa solo se il locale usa tablet separati.</small>
+              <small>{integratedMode ? "Parti con l'account owner. Aggiungi cucina, bar e sala solo sui dispositivi che ne hanno bisogno." : "Parti con l'account owner. Aggiungi cucina, bar o cassa solo se il locale usa tablet separati."}</small>
             </div>
             <button className="onb-secondary" type="button" onClick={() => { window.location.href = "/admin?tab=staff"; }}>Configura più avanti</button>
           </section>

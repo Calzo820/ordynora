@@ -1,4 +1,11 @@
 .onb-shell { padding-bottom: 40px; }
+.onb-integration-choice { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:16px; align-items:center; padding:18px; margin-bottom:16px; border:1px solid #99d5ce; border-radius:20px; background:linear-gradient(135deg,#f0fdfa,#fff); box-shadow:0 12px 28px rgba(15,118,110,.07); }
+.onb-integration-choice__mark { width:52px; height:52px; display:grid; place-items:center; border-radius:16px; background:#0f766e; color:#fff; font-size:13px; font-weight:950; }
+.onb-integration-choice span { color:#0f766e; font-size:11px; font-weight:950; letter-spacing:.08em; text-transform:uppercase; }
+.onb-integration-choice h2 { margin:4px 0 5px; color:#0f172a; font-size:22px; }
+.onb-integration-choice p { margin:0; color:#52616f; font-weight:720; line-height:1.45; }
+.onb-integration-choice__action { display:grid; justify-items:end; gap:7px; }
+.onb-integration-choice__action b { color:#166534; font-size:12px; }
 .onb-hero { display:grid; grid-template-columns:1.4fr .6fr; gap:18px; align-items:center; padding:26px; border-radius:30px; color:white; background:linear-gradient(135deg,#0f172a,#1d4ed8 58%,#0891b2); box-shadow:0 24px 60px rgba(15,23,42,.24); margin-bottom:18px; }
 .onb-pill { display:inline-flex; padding:8px 12px; border-radius:999px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18); font-weight:900; }
 .onb-hero h1 { font-size:42px; line-height:1.02; letter-spacing:0; margin:14px 0 8px; }
@@ -135,7 +142,7 @@
 .onb-flyer-qr small { color:#64748b; font-size:11px; }
 .onb-flyer footer { margin-top:18px; color:#64748b; font-size:10px; font-weight:850; text-align:center; }
 .onb-qr-empty { grid-column:1/-1; border:1px dashed #cbd5e1; border-radius:18px; padding:18px; text-align:center; color:#64748b; font-weight:900; background:#f8fafc; }
-@media (max-width:900px){ .onb-hero,.onb-grid,.onb-command-strip,.onb-service-grid,.onb-print-options,.onb-flyer-qr{grid-template-columns:1fr}.onb-form-row,.onb-form-row.two,.onb-logo-card{grid-template-columns:1fr}.onb-hero h1{font-size:34px}.onb-staff-strip,.onb-coach-card,.onb-modal-head,.onb-menu-shortcut{align-items:flex-start;flex-direction:column}.onb-modal-actions{width:100%}.onb-modal-actions button{flex:1}.onb-flyer-qr svg{width:min(100%,260px);height:auto;margin:0 auto} }
+@media (max-width:900px){ .onb-hero,.onb-grid,.onb-command-strip,.onb-service-grid,.onb-print-options,.onb-flyer-qr{grid-template-columns:1fr}.onb-form-row,.onb-form-row.two,.onb-logo-card{grid-template-columns:1fr}.onb-hero h1{font-size:34px}.onb-staff-strip,.onb-coach-card,.onb-modal-head,.onb-menu-shortcut{align-items:flex-start;flex-direction:column}.onb-modal-actions{width:100%}.onb-modal-actions button{flex:1}.onb-flyer-qr svg{width:min(100%,260px);height:auto;margin:0 auto}.onb-integration-choice{grid-template-columns:auto minmax(0,1fr)}.onb-integration-choice__action{grid-column:1/-1;width:100%;justify-items:stretch}.onb-integration-choice__action .onb-secondary{width:100%} }
 @page { size:A4 portrait; margin:10mm; }
 @media print {
   html, body { width:auto!important; height:auto!important; min-height:0!important; margin:0!important; padding:0!important; overflow:visible!important; background:#fff!important; }

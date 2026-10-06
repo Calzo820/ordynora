@@ -516,6 +516,7 @@ export default function SuperAdmin() {
                         <td>
                           <div className="superadmin-restaurant-name">{restaurant.name}</div>
                           <div className="superadmin-muted">{restaurant.slug || "-"}</div>
+                          <div className="superadmin-muted">{restaurant.operationMode === "integrated" ? "Con gestionale esterno" : "Ordynora completa"}</div>
                         </td>
                         <td>
                           <div>{restaurant.owner?.name || "-"}</div>

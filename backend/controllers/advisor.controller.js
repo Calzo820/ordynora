@@ -1,4 +1,5 @@
 import prisma from "../lib/prisma.js";
+import { RESTAURANT_MODES } from "../lib/restaurantMode.js";
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-5";
 
@@ -102,7 +103,7 @@ function buildRuleInsights(facts) {
     ));
   }
 
-  if (facts.issues.pendingPayments > 0) {
+  if (!facts.integratedMode && facts.issues.pendingPayments > 0) {
     insights.push(makeInsight(
       "high",
       "Conti con pagamento incompleto",
@@ -112,7 +113,7 @@ function buildRuleInsights(facts) {
     ));
   }
 
-  if (facts.sales.paidOrders > 0 && facts.sales.marginRate !== null && facts.sales.marginRate < 55) {
+  if (!facts.integratedMode && facts.sales.paidOrders > 0 && facts.sales.marginRate !== null && facts.sales.marginRate < 55) {
     insights.push(makeInsight(
       "medium",
       "Margine menu da controllare",
@@ -122,7 +123,7 @@ function buildRuleInsights(facts) {
     ));
   }
 
-  if (facts.sales.lowMarginProducts.length > 0) {
+  if (!facts.integratedMode && facts.sales.lowMarginProducts.length > 0) {
     const product = facts.sales.lowMarginProducts[0];
     insights.push(makeInsight(
       "medium",
@@ -133,7 +134,7 @@ function buildRuleInsights(facts) {
     ));
   }
 
-  if (facts.sales.voidRate > 5) {
+  if (!facts.integratedMode && facts.sales.voidRate > 5) {
     insights.push(makeInsight(
       "medium",
       "Troppi annulli sul conto",
@@ -143,7 +144,7 @@ function buildRuleInsights(facts) {
     ));
   }
 
-  if (facts.sales.paidOrders === 0) {
+  if (!facts.integratedMode && facts.sales.paidOrders === 0) {
     insights.push(makeInsight(
       "low",
       "Nessun conto chiuso nel periodo",
@@ -151,7 +152,7 @@ function buildRuleInsights(facts) {
       "Apri cassa",
       "/cassa"
     ));
-  } else if (
+  } else if (!facts.integratedMode &&
     facts.sales.averageTicket !== null &&
     facts.sales.previousAverageTicket > 0 &&
     facts.sales.averageTicket < facts.sales.previousAverageTicket * 0.9
@@ -165,7 +166,7 @@ function buildRuleInsights(facts) {
     ));
   }
 
-  if (facts.sales.topProducts.length > 0 && facts.sales.paidOrders > 0) {
+  if (!facts.integratedMode && facts.sales.topProducts.length > 0 && facts.sales.paidOrders > 0) {
     const top = [...facts.sales.topProducts].sort((a, b) => b.margin - a.margin)[0];
     insights.push(makeInsight(
       "low",
@@ -414,8 +415,11 @@ export const getAnalyticsAdvisor = async (req, res) => {
       .slice(0, 8);
     const subscription = restaurant?.subscription || null;
 
+    const integratedMode = restaurant?.operationMode === RESTAURANT_MODES.INTEGRATED;
     const facts = {
       privacyMode,
+      integratedMode,
+      operationMode: restaurant?.operationMode || "full",
       setup: {
         logoLoaded: Boolean(restaurant?.logoUrl),
         tables: tablesCount,
@@ -441,17 +445,17 @@ export const getAnalyticsAdvisor = async (req, res) => {
         periodDays: days,
         orders: orders.length,
         paidOrders: paidOrders.length,
-        revenue: privacyMode ? null : Number(revenue.toFixed(2)),
-        averageTicket: privacyMode || paidOrders.length === 0 ? null : Number((revenue / paidOrders.length).toFixed(2)),
-        previousAverageTicket: privacyMode || previousPaidOrders.length === 0
+        revenue: privacyMode || integratedMode ? null : Number(revenue.toFixed(2)),
+        averageTicket: privacyMode || integratedMode || paidOrders.length === 0 ? null : Number((revenue / paidOrders.length).toFixed(2)),
+        previousAverageTicket: privacyMode || integratedMode || previousPaidOrders.length === 0
           ? 0
           : Number((previousRevenue / previousPaidOrders.length).toFixed(2)),
-        grossMargin: privacyMode ? null : Number(grossMargin.toFixed(2)),
-        marginRate: privacyMode || revenue === 0 ? null : Number(((grossMargin / revenue) * 100).toFixed(2)),
+        grossMargin: privacyMode || integratedMode ? null : Number(grossMargin.toFixed(2)),
+        marginRate: privacyMode || integratedMode || revenue === 0 ? null : Number(((grossMargin / revenue) * 100).toFixed(2)),
         voidRate: soldItems.length + voidedItems.length
           ? (voidedItems.length / (soldItems.length + voidedItems.length)) * 100
           : 0,
-        lowMarginProducts: privacyMode ? [] : lowMarginProducts.map((product) => ({
+        lowMarginProducts: privacyMode || integratedMode ? [] : lowMarginProducts.map((product) => ({
           name: product.name,
           marginRate: product.marginRate,
         })),
@@ -459,7 +463,7 @@ export const getAnalyticsAdvisor = async (req, res) => {
           name: product.name,
           category: product.category,
           quantity: product.quantity,
-          margin: privacyMode ? 0 : Number(product.margin.toFixed(2)),
+          margin: privacyMode || integratedMode ? 0 : Number(product.margin.toFixed(2)),
         })),
       },
       stock: {
@@ -477,7 +481,7 @@ export const getAnalyticsAdvisor = async (req, res) => {
         cancelAtPeriodEnd: Boolean(subscription?.cancelAtPeriodEnd),
       },
       issues: {
-        pendingPayments,
+        pendingPayments: integratedMode ? 0 : pendingPayments,
         unresolvedErrors,
       },
     };
@@ -497,6 +501,7 @@ export const getAnalyticsAdvisor = async (req, res) => {
       aiConfigured: Boolean(process.env.OPENAI_API_KEY),
       aiEnabled: isAiEnabled(),
       privacyMode,
+      operationMode: restaurant?.operationMode || "full",
       summary: aiResult?.summary || "Consigli operativi generati dai dati del ristorante.",
       insights: aiResult?.insights || ruleInsights,
       facts,

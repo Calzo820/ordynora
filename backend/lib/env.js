@@ -25,6 +25,10 @@ export function validateEnvironment() {
     console.log("Ordynora billing: Stripe base configurato. Verifica tutti i price ID dalla pagina Billing.");
   }
 
+  if (!process.env.INTEGRATION_ENCRYPTION_KEY) {
+    console.warn("Avviso Ordynora integrazioni: INTEGRATION_ENCRYPTION_KEY non configurata. Le chiavi API dei gestionali non potranno essere salvate.");
+  }
+
   return {
     nodeEnv: process.env.NODE_ENV || "development",
     paymentsEnabled: Boolean(process.env.STRIPE_SECRET_KEY),
@@ -38,5 +42,6 @@ export function validateEnvironment() {
     growthPlanEnabled: Boolean(process.env.STRIPE_PRICE_GROWTH || process.env.STRIPE_PRICE_QUARTERLY),
     semiannualPlanEnabled: Boolean(process.env.STRIPE_PRICE_SEMIANNUAL),
     enterprisePlanEnabled: Boolean(process.env.STRIPE_PRICE_ENTERPRISE || process.env.STRIPE_PRICE_YEARLY),
+    integrationsEncryptionEnabled: Boolean(process.env.INTEGRATION_ENCRYPTION_KEY),
   };
 }

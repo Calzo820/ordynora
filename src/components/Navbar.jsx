@@ -7,6 +7,7 @@ import { logoutSession } from "../lib/session";
 import { isPinStaffUser } from "../lib/staffDevice";
 import { clearPlatformSession, hasPlatformSession, restorePlatformSession } from "../lib/superAdminSession";
 import { getQuickGuide, quickGuideStorageKey } from "../lib/uxGuidance";
+import { getStoredRestaurantMode, isIntegratedMode, operationModeCopy } from "../lib/restaurantMode";
 
 function getRistoranteAttivo() {
   return localStorage.getItem("ristorante_attivo") || "";
@@ -56,23 +57,43 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [installMessage, setInstallMessage] = useState("");
+  const [operationMode, setOperationMode] = useState(() => getStoredRestaurantMode());
   const [guideOpen, setGuideOpen] = useState(() => {
     const storedRole = normalizeRole(getUser()?.role);
-    return !localStorage.getItem(quickGuideStorageKey(storedRole));
+    const storedMode = getStoredRestaurantMode();
+    return !localStorage.getItem(quickGuideStorageKey(storedRole, storedMode));
   });
   const pwa = usePwaInstall();
-  const quickGuide = getQuickGuide(role);
+  const quickGuide = getQuickGuide(role, operationMode);
+  const integratedMode = isIntegratedMode(operationMode);
+  const modeCopy = operationModeCopy(operationMode);
+
+  useEffect(() => {
+    const refreshMode = (event) => setOperationMode(event?.detail?.operationMode || getStoredRestaurantMode());
+    window.addEventListener("ordynora:restaurant-mode", refreshMode);
+    window.addEventListener("storage", refreshMode);
+    return () => {
+      window.removeEventListener("ordynora:restaurant-mode", refreshMode);
+      window.removeEventListener("storage", refreshMode);
+    };
+  }, []);
 
   function closeGuide() {
-    localStorage.setItem(quickGuideStorageKey(role), "seen");
+    localStorage.setItem(quickGuideStorageKey(role, operationMode), "seen");
     setGuideOpen(false);
   }
 
   const restaurantName = isSuperAdmin
     ? "Piattaforma SaaS"
-    : hasPlatformSession()
-      ? `${getRistoranteAttivo() || "Ristorante"} - superadmin`
-      : getRistoranteAttivo() || "Nessun ristorante";
+    : getRistoranteAttivo() || "Nessun ristorante";
+  const accountName = impersonating
+    ? "Assistenza attiva"
+    : isSuperAdmin
+      ? "SuperAdmin"
+      : user?.name || "Staff";
+  const accountMeta = impersonating
+    ? `${getRoleLabel(role)} · modalità supporto`
+    : `${role === "cashier" && integratedMode ? "Tavoli / conto esterno" : getRoleLabel(role)} · ${user?.email || ""}`;
 
   const isAdmin = !isSuperAdmin && isAdminRole(role);
   const isWaiter = role === "waiter";
@@ -128,11 +149,11 @@ export default function Navbar() {
           canTables && { to: "/tavoli", label: "Sala e tavoli", shortLabel: "Sala", icon: "SA", section: "Servizio", match: ["/tavoli"] },
           canKitchen && !impersonating && { to: "/cucina", label: "Cucina", icon: "CU", section: "Servizio", match: ["/cucina"] },
           canBar && { to: "/bar", label: "Bar", icon: "BA", section: "Servizio", match: ["/bar"] },
-          canCashier && !impersonating && { to: "/cassa", label: "Cassa", icon: "CA", section: "Servizio", match: ["/cassa"] },
+          canCashier && !impersonating && !integratedMode && { to: "/cassa", label: "Cassa", icon: "CA", section: "Servizio", match: ["/cassa"] },
           isAdmin && { to: "/dashboard", label: "Dashboard", icon: "DB", section: "Gestione", match: ["/dashboard"] },
           isAdmin && { to: "/admin?tab=menu", label: "Menu e prodotti", icon: "ME", section: "Gestione", match: ["/admin"], adminTab: "menu" },
-          isAdmin && !impersonating && { to: "/statistiche", label: "Statistiche", icon: "ST", section: "Gestione", match: ["/statistiche"] },
-          isAdmin && !impersonating && { to: "/storico", label: "Storico ordini", icon: "OR", section: "Gestione", match: ["/storico"] },
+          isAdmin && !impersonating && { to: "/statistiche", label: integratedMode ? "Tempi e servizio" : "Statistiche", icon: "ST", section: "Gestione", match: ["/statistiche"] },
+          isAdmin && !impersonating && { to: "/storico", label: integratedMode ? "Registro servizio" : "Storico ordini", icon: "OR", section: "Gestione", match: ["/storico"] },
         ].filter(Boolean);
 
   const settingsLinks = !logged || !isAdmin || isSuperAdmin
@@ -141,6 +162,7 @@ export default function Navbar() {
         { to: "/onboarding", label: "Setup guidato", match: ["/onboarding", "/setup"] },
         { to: "/admin?tab=settings", label: "Profilo e app", match: ["/admin"], adminTab: "settings" },
         { to: "/admin?tab=staff", label: "Staff e ruoli", match: ["/admin"], adminTab: "staff" },
+        { to: "/integrazioni", label: "Gestionale collegato", match: ["/integrazioni"] },
         { to: "/qr", label: "QR tavoli", match: ["/qr"] },
         { to: "/billing", label: "Abbonamento", match: ["/billing"] },
         { to: "/privacy", label: "Privacy", match: ["/privacy", "/termini", "/cookie"] },
@@ -248,13 +270,33 @@ export default function Navbar() {
           transition: transform .2s ease;
         }
         .em-sidebar.is-open { transform: translateX(0); }
-        .em-sidebar__brand { padding: 18px 16px 16px 72px; display: flex; gap: 12px; align-items: center; min-height: 80px; }
+        .em-sidebar__brand { padding: 15px 16px 12px 72px; display: flex; gap: 12px; align-items: center; min-height: 72px; }
         .em-sidebar__logo { width: 42px; height: 42px; border-radius: 14px; background: white; display: grid; place-items: center; padding: 7px; overflow: hidden; flex: 0 0 auto; }
         .em-sidebar__logo img { width: 100%; height: 100%; object-fit: contain; }
         .em-sidebar__name { font-size: 18px; font-weight: 950; letter-spacing: -0.04em; line-height: 1; }
         .em-sidebar__restaurant { margin-top: 6px; color: #9fb0c7; font-size: 12px; font-weight: 750; display: flex; align-items: center; gap: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .em-sidebar__mode { display: inline-flex; margin-top: 7px; max-width: 100%; padding: 4px 8px; border-radius: 999px; background: rgba(45,212,191,.12); color: #99f6e4; font-size: 9px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
         .em-sidebar__dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,0.12); }
-        .em-sidebar__nav { display: grid; gap: 6px; padding: 14px; overflow: auto; }
+        .em-sidebar__support-return {
+          margin: 0 14px 5px;
+          min-height: 44px;
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          align-items: center;
+          gap: 10px;
+          border: 1px solid rgba(45,212,191,0.28);
+          border-radius: 14px;
+          padding: 8px 11px;
+          background: rgba(20,184,166,0.13);
+          color: #ecfeff;
+          text-align: left;
+          cursor: pointer;
+        }
+        .em-sidebar__support-return > i { font-style: normal; font-size: 19px; }
+        .em-sidebar__support-return > span { display: grid; gap: 1px; min-width: 0; }
+        .em-sidebar__support-return b { font-size: 12px; }
+        .em-sidebar__support-return small { color: #99f6e4; font-size: 10px; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .em-sidebar__nav { flex: 1 1 auto; min-height: 0; display: grid; align-content: start; gap: 6px; padding: 10px 14px; overflow: auto; overscroll-behavior: contain; }
         .em-sidebar__link { display: flex; align-items: center; gap: 14px; min-height: 46px; padding: 0 14px; border-radius: 16px; color: #cbd5e1; text-decoration: none; font-weight: 900; }
         .em-sidebar__link:hover { background: rgba(255,255,255,0.07); color: #fff; }
         .em-sidebar__link.is-active { background: #fff; color: #07111f; }
@@ -301,15 +343,19 @@ export default function Navbar() {
         }
         .em-sidebar__sublink:hover { background: rgba(255,255,255,0.07); color: #fff; }
         .em-sidebar__sublink.is-active { background: rgba(255,255,255,0.95); color: #07111f; }
-        .em-sidebar__footer { margin-top: auto; padding: 14px; display: grid; gap: 10px; }
-        .em-sidebar__user { display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: 18px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.08); }
-        .em-sidebar__avatar { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: #1d4ed8; color: white; font-size: 13px; font-weight: 950; flex: 0 0 auto; }
-        .em-sidebar__email { max-width: 170px; color: #cbd5e1; font-size: 11px; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .em-sidebar__actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
-        .em-sidebar__btn { border: 1px solid rgba(255,255,255,0.10); border-radius: 13px; padding: 10px 11px; background: rgba(255,255,255,0.07); color: white; font-weight: 900; cursor: pointer; }
-        .em-sidebar__btn--green { background: rgba(34,197,94,0.18); border-color: rgba(34,197,94,0.25); }
+        .em-sidebar__footer { flex: 0 0 auto; padding: 10px 14px 12px; display: grid; gap: 8px; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(2,8,23,0.18); }
+        .em-sidebar__user { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 9px; align-items: center; min-width: 0; }
+        .em-sidebar__avatar { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: #1d4ed8; color: white; font-size: 11px; font-weight: 950; flex: 0 0 auto; }
+        .em-sidebar__account { min-width: 0; }
+        .em-sidebar__account-name { font-size: 12px; font-weight: 950; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .em-sidebar__email { color: #9fb0c7; font-size: 10px; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .em-sidebar__exit { border: 0; border-radius: 10px; padding: 7px 8px; background: rgba(255,255,255,0.07); color: #cbd5e1; font: inherit; font-size: 10px; font-weight: 900; cursor: pointer; }
+        .em-sidebar__exit:hover { background: rgba(255,255,255,0.13); color: white; }
+        .em-sidebar__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+        .em-sidebar__actions > :only-child { grid-column: 1 / -1; }
+        .em-sidebar__btn { min-height: 36px; border: 1px solid rgba(255,255,255,0.10); border-radius: 11px; padding: 8px 9px; background: rgba(255,255,255,0.07); color: white; font-size: 11px; font-weight: 900; cursor: pointer; }
         .em-sidebar__btn--install { background: rgba(59,130,246,0.18); border-color: rgba(96,165,250,0.24); }
-        .em-sidebar__install-help { border-radius: 14px; padding: 10px 12px; background: rgba(59,130,246,0.10); border: 1px solid rgba(96,165,250,0.18); color: #bfdbfe; font-size: 12px; line-height: 1.35; font-weight: 750; }
+        .em-sidebar__install-help { grid-column: 1 / -1; border-radius: 12px; padding: 9px 10px; background: rgba(59,130,246,0.10); border: 1px solid rgba(96,165,250,0.18); color: #bfdbfe; font-size: 11px; line-height: 1.35; font-weight: 750; }
         @media (min-width: 1240px) {
           body.em-sidebar-ready,
           body.em-sidebar-open,
@@ -333,11 +379,15 @@ export default function Navbar() {
           }
         }
         @media (max-height: 760px) {
-          .em-sidebar__brand { min-height: 68px; padding-top: 12px; padding-bottom: 10px; }
+          .em-sidebar__brand { min-height: 62px; padding-top: 10px; padding-bottom: 8px; }
           .em-sidebar__nav { padding-top: 6px; padding-bottom: 6px; }
           .em-sidebar__link,
           .em-sidebar__settings-toggle { min-height: 40px; }
-          .em-sidebar__footer { padding-top: 8px; }
+          .em-sidebar__footer { padding-top: 7px; padding-bottom: 8px; }
+        }
+        @media (max-width: 430px) {
+          .em-sidebar { width: min(286px, 90vw); }
+          .em-sidebar__brand { padding-left: 68px; }
         }
         @media print {
           .em-menu-toggle, .em-sidebar, .em-sidebar-backdrop { display: none !important; }
@@ -363,8 +413,16 @@ export default function Navbar() {
           <div style={{ minWidth: 0 }}>
             <div className="em-sidebar__name">Ordynora</div>
             <div className="em-sidebar__restaurant"><span className="em-sidebar__dot" />{restaurantName}</div>
+            {!isSuperAdmin ? <div className="em-sidebar__mode" title={modeCopy.description}>{modeCopy.short}</div> : null}
           </div>
         </div>
+
+        {impersonating ? (
+          <button className="em-sidebar__support-return" type="button" onClick={returnToPlatform}>
+            <i aria-hidden="true">←</i>
+            <span><b>Torna alla console</b><small>Sessione amministratore al sicuro</small></span>
+          </button>
+        ) : null}
 
         <nav className="em-sidebar__nav">
           {links.map((link, index) => (
@@ -411,19 +469,18 @@ export default function Navbar() {
         <div className="em-sidebar__footer">
           <div className="em-sidebar__user">
             <div className="em-sidebar__avatar">{initials(user)}</div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 950 }}>{isSuperAdmin ? "SuperAdmin" : user?.name || "Staff"}</div>
-              <div className="em-sidebar__email">{getRoleLabel(role)} · {user?.email || ""}</div>
+            <div className="em-sidebar__account">
+              <div className="em-sidebar__account-name">{accountName}</div>
+              <div className="em-sidebar__email">{accountMeta}</div>
             </div>
+            <button className="em-sidebar__exit" type="button" onClick={() => logout(staffDevice ? "/staff" : "/login")}>
+              {staffDevice ? "Cambia" : "Esci"}
+            </button>
           </div>
           <div className="em-sidebar__actions">
-            {!isSuperAdmin ? <button className="em-sidebar__btn em-sidebar__btn--guide" type="button" onClick={() => setGuideOpen(true)}>Come si usa</button> : null}
-            {!pwa.installed ? <button className="em-sidebar__btn em-sidebar__btn--install" type="button" onClick={handleInstallClick}>{pwa.canPrompt ? "Installa app" : "Guida installazione"}</button> : null}
+            {!isSuperAdmin ? <button className="em-sidebar__btn em-sidebar__btn--guide" type="button" onClick={() => setGuideOpen(true)}>Guida rapida</button> : null}
+            {!pwa.installed ? <button className="em-sidebar__btn em-sidebar__btn--install" type="button" onClick={handleInstallClick}>{pwa.canPrompt ? "Installa app" : "Come installare"}</button> : null}
             {installMessage ? <div className="em-sidebar__install-help">{installMessage}</div> : null}
-            {impersonating ? <button className="em-sidebar__btn em-sidebar__btn--green" onClick={returnToPlatform}>SuperAdmin</button> : null}
-            <button className="em-sidebar__btn" onClick={() => logout(staffDevice ? "/staff" : "/login")}>
-              {staffDevice ? "Cambia operatore" : "Esci"}
-            </button>
           </div>
         </div>
       </aside>

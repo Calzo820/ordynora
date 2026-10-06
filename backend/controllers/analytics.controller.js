@@ -1,4 +1,5 @@
 import prisma from "../lib/prisma.js";
+import { RESTAURANT_MODES } from "../lib/restaurantMode.js";
 
 function startOfDay(date = new Date()) {
   const d = new Date(date);
@@ -468,9 +469,10 @@ export const getAnalyticsSummary = async (req, res) => {
     const topProductsToday = buildProductStats(paidToday).slice(0, 10);
     const subscription = restaurantBilling?.subscription || null;
     const subscriptionAlert = subscription && ["past_due", "unpaid", "incomplete"].includes(subscription.status);
-    const paymentAlertsCount = failedPayments.length + (subscriptionAlert ? 1 : 0);
+    const integratedMode = restaurantBilling?.operationMode === RESTAURANT_MODES.INTEGRATED;
+    const paymentAlertsCount = (integratedMode ? 0 : failedPayments.length) + (subscriptionAlert ? 1 : 0);
 
-    const hideMoney = (value) => (privacyMode ? null : value);
+    const hideMoney = (value) => (privacyMode || integratedMode ? null : value);
     const hideRevenueRows = (rows = []) => rows.map((row) => ({
       ...row,
       revenue: hideMoney(row.revenue),
@@ -491,6 +493,8 @@ export const getAnalyticsSummary = async (req, res) => {
       range,
       generatedAt: new Date().toISOString(),
       privacyMode,
+      operationMode: restaurantBilling?.operationMode || "full",
+      financialDataAvailable: !integratedMode && !privacyMode,
       supportAccess: latestSupportAccess
         ? {
             id: latestSupportAccess.id,
@@ -587,7 +591,7 @@ export const getAnalyticsSummary = async (req, res) => {
           createdAt: log.createdAt,
         })),
 
-        paymentAlerts: failedPayments.map((payment) => ({
+        paymentAlerts: (integratedMode ? [] : failedPayments).map((payment) => ({
           id: payment.id,
           status: payment.status,
           amount: hideMoney(payment.amount),
@@ -619,7 +623,7 @@ export const getAnalyticsSummary = async (req, res) => {
         byHourToday: hideRevenueRows(buildHourlyToday(ordersToday)),
         topProducts: hideProductMoney(topProductsRange),
         topProductsToday: hideProductMoney(topProductsToday),
-        byPayment: hideRevenueRows([...byPaymentMap.values()]),
+        byPayment: integratedMode ? [] : hideRevenueRows([...byPaymentMap.values()]),
       },
     });
   } catch (error) {

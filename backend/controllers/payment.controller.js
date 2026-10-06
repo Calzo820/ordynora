@@ -5,6 +5,10 @@ import { coverTotal, equalShareAmount } from "../lib/billing.js";
 import { syncSubscriptionFromStripe } from "./subscription.controller.js";
 import { logPaymentProblem } from "../lib/logger.js";
 import { safeEmit } from "../lib/socketSafe.js";
+import {
+  RESTAURANT_MODES,
+  sendIntegratedModeError,
+} from "../lib/restaurantMode.js";
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -78,6 +82,14 @@ export async function getStripeConnectStatus(req, res) {
 
     const restaurant = await prisma.restaurant.findUnique({ where: { id: req.user.restaurantId } });
     if (!restaurant) return res.status(404).json({ message: "Ristorante non trovato" });
+    if (restaurant.operationMode === RESTAURANT_MODES.INTEGRATED) {
+      return res.json({
+        ...connectStatus(restaurant),
+        available: false,
+        code: "EXTERNAL_POS_OWNS_FEATURE",
+        message: "I pagamenti sono gestiti dal gestionale collegato.",
+      });
+    }
     if (!restaurant.stripeConnectAccountId) return res.json({ ...connectStatus(restaurant), available: true });
 
     const stripe = getStripe();
@@ -96,14 +108,17 @@ export async function createStripeConnectOnboarding(req, res) {
   try {
     if (!tablePaymentsEnabled()) return tablePaymentsComingSoon(res);
 
-    const stripe = getStripe();
-    if (!stripe) return res.status(501).json({ message: "Stripe non è configurato sul backend." });
-
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: req.user.restaurantId },
       include: { users: { where: { role: "owner" }, take: 1 } },
     });
     if (!restaurant) return res.status(404).json({ message: "Ristorante non trovato" });
+    if (restaurant.operationMode === RESTAURANT_MODES.INTEGRATED) {
+      return sendIntegratedModeError(res, "L'attivazione degli incassi Ordynora");
+    }
+
+    const stripe = getStripe();
+    if (!stripe) return res.status(501).json({ message: "Stripe non è configurato sul backend." });
 
     let accountId = restaurant.stripeConnectAccountId;
     if (!accountId) {
@@ -144,13 +159,17 @@ export async function createStripeConnectDashboard(req, res) {
   try {
     if (!tablePaymentsEnabled()) return tablePaymentsComingSoon(res);
 
-    const stripe = getStripe();
-    if (!stripe) return res.status(501).json({ message: "Stripe non è configurato sul backend." });
-
     const restaurant = await prisma.restaurant.findUnique({ where: { id: req.user.restaurantId } });
-    if (!restaurant?.stripeConnectAccountId) {
+    if (!restaurant) return res.status(404).json({ message: "Ristorante non trovato" });
+    if (restaurant.operationMode === RESTAURANT_MODES.INTEGRATED) {
+      return sendIntegratedModeError(res, "Il pannello incassi Ordynora");
+    }
+    if (!restaurant.stripeConnectAccountId) {
       return res.status(400).json({ message: "Prima collega il conto Stripe del ristorante." });
     }
+
+    const stripe = getStripe();
+    if (!stripe) return res.status(501).json({ message: "Stripe non è configurato sul backend." });
 
     const loginLink = await stripe.accounts.createLoginLink(restaurant.stripeConnectAccountId);
     return res.json({ dashboardUrl: loginLink.url });
@@ -245,6 +264,11 @@ async function reserveCheckoutPayment(orderId, paymentMode) {
           include: { table: true, restaurant: true, items: true, payments: true },
         });
         if (!order) throw Object.assign(new Error("Ordine non trovato"), { code: "ORDER_NOT_FOUND" });
+        if (order.restaurant?.operationMode === RESTAURANT_MODES.INTEGRATED) {
+          throw Object.assign(new Error("Il pagamento è gestito dal gestionale collegato."), {
+            code: "EXTERNAL_POS_OWNS_FEATURE",
+          });
+        }
         if (order.status === "cancelled" || order.closedAt) {
           throw Object.assign(new Error("Ordine non pagabile"), { code: "ORDER_CLOSED" });
         }
@@ -382,6 +406,10 @@ export async function getPublicPaymentSummary(req, res) {
       where: { id: found.id },
       include: { payments: { orderBy: { createdAt: "asc" } }, table: true, restaurant: true },
     });
+    if (!order) return res.status(404).json({ message: "Ordine non trovato" });
+    if (order?.restaurant?.operationMode === RESTAURANT_MODES.INTEGRATED) {
+      return sendIntegratedModeError(res, "Il riepilogo pagamenti Ordynora");
+    }
     const split = paymentSplitSummary(order, order.payments);
     const stripeReady = tablePaymentsEnabled() && Boolean(
       order.restaurant?.stripeConnectAccountId &&
@@ -456,6 +484,9 @@ export async function createPublicStripeCheckout(req, res) {
     });
 
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
+    if (order.restaurant?.operationMode === RESTAURANT_MODES.INTEGRATED) {
+      return sendIntegratedModeError(res, "Il pagamento dal tavolo");
+    }
     if (order.status === "cancelled" || order.closedAt) {
       return res.status(400).json({ message: "Ordine non pagabile" });
     }
@@ -564,6 +595,7 @@ export async function createPublicStripeCheckout(req, res) {
       "SPLIT_NOT_AVAILABLE",
       "NO_SHARE_AVAILABLE",
       "AMOUNT_TOO_SMALL",
+      "EXTERNAL_POS_OWNS_FEATURE",
     ]);
     if (clientErrors.has(error?.code)) {
       const status = error.code === "ORDER_NOT_FOUND" ? 404 : error.code === "PAYMENT_RESERVED" ? 409 : 400;
@@ -834,6 +866,9 @@ export async function getPublicReceipt(req, res) {
       include: { restaurant: true, table: true, items: true, payments: { orderBy: { createdAt: "desc" } } },
     });
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
+    if (order.restaurant?.operationMode === RESTAURANT_MODES.INTEGRATED) {
+      return sendIntegratedModeError(res, "La ricevuta Ordynora");
+    }
 
     const paidAmount = order.payments.filter((p) => p.status === "paid").reduce((s, p) => s + toMoney(p.amount), 0);
     const billableItems = order.items.filter((item) => item.status !== "voided" && !item.isComplimentary);

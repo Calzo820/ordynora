@@ -9,38 +9,42 @@ datasource db {
 }
 
 model Restaurant {
-  id                            String            @id @default(cuid())
+  id                            String                  @id @default(cuid())
   name                          String
-  slug                          String            @unique
-  primaryColor                  String?           @default("#1d4ed8")
+  slug                          String                  @unique
+  primaryColor                  String?                 @default("#1d4ed8")
   logoUrl                       String?
-  currency                      String            @default("EUR")
-  isActive                      Boolean           @default(true)
-  plan                          RestaurantPlan    @default(starter)
+  currency                      String                  @default("EUR")
+  isActive                      Boolean                 @default(true)
+  plan                          RestaurantPlan          @default(starter)
+  operationMode                 RestaurantOperationMode @default(full)
   settingsJson                  Json?
-  stripeCustomerId              String?           @unique
-  stripeConnectAccountId        String?           @unique
-  stripeConnectDetailsSubmitted Boolean           @default(false)
-  stripeConnectChargesEnabled   Boolean           @default(false)
-  stripeConnectPayoutsEnabled   Boolean           @default(false)
+  stripeCustomerId              String?                 @unique
+  stripeConnectAccountId        String?                 @unique
+  stripeConnectDetailsSubmitted Boolean                 @default(false)
+  stripeConnectChargesEnabled   Boolean                 @default(false)
+  stripeConnectPayoutsEnabled   Boolean                 @default(false)
   stripeConnectOnboardedAt      DateTime?
   subscription                  SaaSSubscription?
-  createdAt                     DateTime          @default(now())
-  updatedAt                     DateTime          @updatedAt
+  createdAt                     DateTime                @default(now())
+  updatedAt                     DateTime                @updatedAt
 
-  users         User[]
-  menuItems     MenuItem[]
-  tables        Table[]
-  orders        Order[]
-  payments      PaymentTransaction[]
-  tableSessions TableSession[]
-  reservations  Reservation[]
-  errorLogs     ErrorLog[]
-  orderCounter  OrderCounter?
-  cashClosures  CashClosure[]
-  auditLogs     AuditLog[]
+  users          User[]
+  menuItems      MenuItem[]
+  tables         Table[]
+  orders         Order[]
+  payments       PaymentTransaction[]
+  tableSessions  TableSession[]
+  reservations   Reservation[]
+  errorLogs      ErrorLog[]
+  orderCounter   OrderCounter?
+  cashClosures   CashClosure[]
+  auditLogs      AuditLog[]
   stockMovements StockMovement[]
-  printJobs     PrintJob[]
+  printJobs      PrintJob[]
+  posIntegration PosIntegration?
+
+  @@index([operationMode])
 }
 
 model User {
@@ -63,15 +67,15 @@ model User {
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
 
-  restaurant      Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  sessions        UserSession[]
-  closedCashDays  CashClosure[]         @relation("CashClosureUser")
-  auditLogs       AuditLog[]
-  stockMovements  StockMovement[]
-  createdPayments PaymentTransaction[]  @relation("PaymentCreatedBy")
-  voidedItems     OrderItem[]            @relation("OrderItemVoidedBy")
-  reopenedOrders  Order[]                @relation("OrderReopenedBy")
-  claimedPrintJobs PrintJob[]             @relation("PrintJobClaimedBy")
+  restaurant       Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  sessions         UserSession[]
+  closedCashDays   CashClosure[]        @relation("CashClosureUser")
+  auditLogs        AuditLog[]
+  stockMovements   StockMovement[]
+  createdPayments  PaymentTransaction[] @relation("PaymentCreatedBy")
+  voidedItems      OrderItem[]          @relation("OrderItemVoidedBy")
+  reopenedOrders   Order[]              @relation("OrderReopenedBy")
+  claimedPrintJobs PrintJob[]           @relation("PrintJobClaimedBy")
 
   @@index([restaurantId, isActive, role])
 }
@@ -92,31 +96,31 @@ model UserSession {
 }
 
 model MenuItem {
-  id               String          @id @default(cuid())
-  restaurantId     String
-  name             String
-  description      String?
-  shortDescription String?
-  price            Decimal         @db.Decimal(10, 2)
-  costPrice        Decimal         @default(0) @db.Decimal(10, 2)
-  category         String?
-  imageUrl         String?
-  allergens        String[]        @default([])
-  sku              String?
-  vatRate          Decimal         @default(10) @db.Decimal(5, 2)
-  sortOrder        Int             @default(0)
-  isFeatured       Boolean         @default(false)
-  preparationArea  PreparationArea
-  isAvailable      Boolean         @default(true)
-  isDeleted        Boolean         @default(false)
-  trackStock       Boolean         @default(false)
-  stockQuantity    Decimal         @default(0) @db.Decimal(10, 3)
-  lowStockThreshold Decimal        @default(0) @db.Decimal(10, 3)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id                String          @id @default(cuid())
+  restaurantId      String
+  name              String
+  description       String?
+  shortDescription  String?
+  price             Decimal         @db.Decimal(10, 2)
+  costPrice         Decimal         @default(0) @db.Decimal(10, 2)
+  category          String?
+  imageUrl          String?
+  allergens         String[]        @default([])
+  sku               String?
+  vatRate           Decimal         @default(10) @db.Decimal(5, 2)
+  sortOrder         Int             @default(0)
+  isFeatured        Boolean         @default(false)
+  preparationArea   PreparationArea
+  isAvailable       Boolean         @default(true)
+  isDeleted         Boolean         @default(false)
+  trackStock        Boolean         @default(false)
+  stockQuantity     Decimal         @default(0) @db.Decimal(10, 3)
+  lowStockThreshold Decimal         @default(0) @db.Decimal(10, 3)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
-  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  orderItems OrderItem[]
+  restaurant     Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orderItems     OrderItem[]
   stockMovements StockMovement[]
 
   @@index([restaurantId, isDeleted, isAvailable, sortOrder])
@@ -190,36 +194,38 @@ model TableSession {
 }
 
 model Order {
-  id              String         @id @default(cuid())
-  restaurantId    String
-  tableId         String
-  tableSessionId  String?
-  publicToken     String         @unique @default(cuid())
-  orderNumber     Int            @default(1)
-  customerName    String?
-  notes           String?
-  source          OrderSource    @default(qr)
-  status          OrderStatus    @default(pending)
-  paymentStatus   PaymentStatus  @default(unpaid)
-  paymentMethod   PaymentMethod?
-  clientRequestId String?
-  idempotencyKey  String?        @unique
-  totalAmount     Decimal        @default(0) @db.Decimal(10, 2)
-  discountAmount  Decimal        @default(0) @db.Decimal(10, 2)
-  discountPercent Decimal        @default(0) @db.Decimal(5, 2)
-  extraAmount     Decimal        @default(0) @db.Decimal(10, 2)
-  guestCount      Int            @default(1)
-  coverCharge     Decimal        @default(0) @db.Decimal(10, 2)
-  coverChargePerGuest Boolean    @default(true)
-  equalSplitEnabled Boolean      @default(true)
-  billConfiguredAt DateTime?
-  billRevision    Int            @default(1)
-  acceptedAt      DateTime?
-  readyAt         DateTime?
-  servedAt        DateTime?
-  closedAt        DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                  String           @id @default(cuid())
+  restaurantId        String
+  tableId             String
+  tableSessionId      String?
+  publicToken         String           @unique @default(cuid())
+  orderNumber         Int              @default(1)
+  customerName        String?
+  notes               String?
+  source              OrderSource      @default(qr)
+  status              OrderStatus      @default(pending)
+  paymentStatus       PaymentStatus    @default(unpaid)
+  paymentMethod       PaymentMethod?
+  clientRequestId     String?
+  idempotencyKey      String?          @unique
+  totalAmount         Decimal          @default(0) @db.Decimal(10, 2)
+  discountAmount      Decimal          @default(0) @db.Decimal(10, 2)
+  discountPercent     Decimal          @default(0) @db.Decimal(5, 2)
+  extraAmount         Decimal          @default(0) @db.Decimal(10, 2)
+  guestCount          Int              @default(1)
+  coverCharge         Decimal          @default(0) @db.Decimal(10, 2)
+  coverChargePerGuest Boolean          @default(true)
+  equalSplitEnabled   Boolean          @default(true)
+  billConfiguredAt    DateTime?
+  billRequestedAt     DateTime?
+  billRevision        Int              @default(1)
+  settlementSource    SettlementSource @default(ordynora)
+  acceptedAt          DateTime?
+  readyAt             DateTime?
+  servedAt            DateTime?
+  closedAt            DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
   restaurant    Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   table         Table                @relation(fields: [tableId], references: [id], onDelete: Restrict)
@@ -240,34 +246,35 @@ model Order {
   @@index([restaurantId, createdAt])
   @@index([restaurantId, status, closedAt, createdAt])
   @@index([restaurantId, paymentStatus, createdAt])
+  @@index([restaurantId, settlementSource, closedAt])
   @@index([tableId, closedAt, status, createdAt])
   @@index([tableSessionId, status])
 }
 
 model OrderItem {
-  id               String           @id @default(cuid())
-  orderId          String
-  menuItemId       String?
-  quantity         Int
-  nameSnapshot     String
-  priceSnapshot    Decimal          @db.Decimal(10, 2)
-  costSnapshot     Decimal          @default(0) @db.Decimal(10, 2)
-  categorySnapshot String?
-  notes            String?
-  preparationArea  PreparationArea?
-  preparationStatus PreparationStatus @default(pending)
-  courseNumber      Int              @default(1)
-  releasedAt        DateTime?
+  id                   String            @id @default(cuid())
+  orderId              String
+  menuItemId           String?
+  quantity             Int
+  nameSnapshot         String
+  priceSnapshot        Decimal           @db.Decimal(10, 2)
+  costSnapshot         Decimal           @default(0) @db.Decimal(10, 2)
+  categorySnapshot     String?
+  notes                String?
+  preparationArea      PreparationArea?
+  preparationStatus    PreparationStatus @default(pending)
+  courseNumber         Int               @default(1)
+  releasedAt           DateTime?
   preparationStartedAt DateTime?
-  preparationReadyAt DateTime?
-  status           OrderItemStatus  @default(active)
-  voidReason       String?
-  voidedAt         DateTime?
-  voidedByUserId   String?
-  isComplimentary  Boolean          @default(false)
-  complimentaryReason String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  preparationReadyAt   DateTime?
+  status               OrderItemStatus   @default(active)
+  voidReason           String?
+  voidedAt             DateTime?
+  voidedByUserId       String?
+  isComplimentary      Boolean           @default(false)
+  complimentaryReason  String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
@@ -280,27 +287,27 @@ model OrderItem {
 }
 
 model PaymentTransaction {
-  id                      String        @id @default(cuid())
+  id                      String         @id @default(cuid())
   restaurantId            String
   orderId                 String
-  provider                String        @default("stripe")
-  providerSessionId       String?       @unique
+  provider                String         @default("stripe")
+  providerSessionId       String?        @unique
   providerPaymentIntentId String?
   connectedAccountId      String?
-  amount                  Decimal       @db.Decimal(10, 2)
-  currency                String        @default("EUR")
-  status                  PaymentStatus @default(pending)
+  amount                  Decimal        @db.Decimal(10, 2)
+  currency                String         @default("EUR")
+  status                  PaymentStatus  @default(pending)
   method                  PaymentMethod?
   splitLabel              String?
-  splitKey                String?       @unique
+  splitKey                String?        @unique
   splitIndex              Int?
   splitCount              Int?
-  coversCount             Int           @default(0)
+  coversCount             Int            @default(0)
   billRevision            Int?
   checkoutExpiresAt       DateTime?
   createdByUserId         String?
-  createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @updatedAt
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
   paidAt                  DateTime?
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
@@ -380,20 +387,20 @@ model StockMovement {
 }
 
 model PrintJob {
-  id              String         @id @default(cuid())
+  id              String          @id @default(cuid())
   restaurantId    String
   orderId         String
   area            PreparationArea
-  eventKey        String         @unique
-  kind            String         @default("order")
-  status          PrintJobStatus @default(pending)
-  attempts        Int            @default(0)
+  eventKey        String          @unique
+  kind            String          @default("order")
+  status          PrintJobStatus  @default(pending)
+  attempts        Int             @default(0)
   lastError       String?
   claimedByUserId String?
   claimedAt       DateTime?
   printedAt       DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -401,6 +408,69 @@ model PrintJob {
 
   @@index([restaurantId, area, status, createdAt])
   @@index([orderId, createdAt])
+}
+
+model PosIntegration {
+  id                   String               @id @default(cuid())
+  restaurantId         String               @unique
+  provider             PosProvider
+  status               PosIntegrationStatus @default(draft)
+  encryptedCredentials String?
+  credentialKeyVersion Int                  @default(1)
+  config               Json?
+  lastTestedAt         DateTime?
+  lastSyncAt           DateTime?
+  lastError            String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  restaurant Restaurant              @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  mappings   PosIntegrationMapping[]
+  jobs       PosIntegrationJob[]
+
+  @@index([provider, status])
+}
+
+model PosIntegrationMapping {
+  id            String   @id @default(cuid())
+  integrationId String
+  entityType    String
+  localId       String
+  externalId    String
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  integration PosIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, entityType, localId])
+  @@unique([integrationId, entityType, externalId])
+  @@index([integrationId, entityType])
+}
+
+model PosIntegrationJob {
+  id             String               @id @default(cuid())
+  integrationId  String
+  operation      String
+  direction      IntegrationDirection @default(outbound)
+  status         IntegrationJobStatus @default(pending)
+  idempotencyKey String               @unique
+  entityType     String?
+  entityId       String?
+  externalId     String?
+  payload        Json?
+  responseMeta   Json?
+  attempts       Int                  @default(0)
+  nextAttemptAt  DateTime?
+  processedAt    DateTime?
+  lastError      String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  integration PosIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId, status, nextAttemptAt])
+  @@index([entityType, entityId])
 }
 
 model OrderStatusHistory {
@@ -451,6 +521,16 @@ enum RestaurantPlan {
   growth
   semiannual
   enterprise
+}
+
+enum RestaurantOperationMode {
+  full
+  integrated
+}
+
+enum SettlementSource {
+  ordynora
+  external_pos
 }
 
 enum SubscriptionStatus {
@@ -548,6 +628,35 @@ enum PrintJobStatus {
   processing
   printed
   failed
+}
+
+enum PosProvider {
+  tilby
+  teamsystem_cassa_in_cloud
+  passepartout_menu
+}
+
+enum PosIntegrationStatus {
+  draft
+  pending_partner
+  testing
+  connected
+  degraded
+  disabled
+}
+
+enum IntegrationDirection {
+  inbound
+  outbound
+}
+
+enum IntegrationJobStatus {
+  pending
+  processing
+  retrying
+  succeeded
+  failed
+  blocked
 }
 
 model ErrorLog {

@@ -4,7 +4,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js",
+    "dev": "node --watch server.js",
     "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema=./prisma/schema.prisma",
     "start": "prisma migrate deploy --schema=./prisma/schema.prisma && prisma generate --schema=./prisma/schema.prisma && node server.js",
@@ -35,7 +35,6 @@
     "stripe": "^18.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10",
     "prisma": "^5.22.0",
     "supertest": "^7.2.2"
   },

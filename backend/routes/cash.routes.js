@@ -11,6 +11,8 @@ import {
   requireRole,
 } from "../middleware/auth.middleware.js";
 import { requireActiveSubscription } from "../middleware/billing.middleware.js";
+import prisma from "../lib/prisma.js";
+import { requireFullRestaurantMode } from "../lib/restaurantMode.js";
 
 const router = express.Router();
 const cashAccess = [
@@ -18,6 +20,7 @@ const cashAccess = [
   denyImpersonatedPrivateData,
   requireActiveSubscription,
   requireRole(["owner", "admin", "cashier"]),
+  requireFullRestaurantMode(prisma, "La cassa Ordynora"),
 ];
 
 router.get("/summary", ...cashAccess, getCashSummary);
@@ -29,6 +32,7 @@ router.post(
   denyImpersonatedPrivateData,
   requireActiveSubscription,
   requireRole(["owner"]),
+  requireFullRestaurantMode(prisma, "La chiusura giornaliera"),
   reopenCashDay
 );
 

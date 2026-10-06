@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import { apiGet, apiPatch } from "../lib/api";
 import { glowPageStyle, appShellStyle } from "../styles/pageStyles";
+import { getStoredRestaurantMode, persistRestaurantMode } from "../lib/restaurantMode";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -12,12 +13,23 @@ export default function Errori() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errore, setErrore] = useState("");
+  const [operationMode, setOperationMode] = useState(() => getStoredRestaurantMode());
+  const integratedMode = operationMode === "integrated";
 
   async function loadLogs() {
     try {
       setLoading(true);
-      const data = await apiGet("/logs/errors?limit=80");
-      setLogs(Array.isArray(data) ? data : []);
+      const [data, restaurant] = await Promise.all([
+        apiGet("/logs/errors?limit=80"),
+        apiGet("/restaurants/me"),
+      ]);
+      const rows = Array.isArray(data) ? data : [];
+      const mode = restaurant?.operationMode || "full";
+      setOperationMode(mode);
+      persistRestaurantMode(mode);
+      setLogs(mode === "integrated"
+        ? rows.filter((log) => !/payment|pagament|stripe|checkout/i.test(`${log.level} ${log.source}`))
+        : rows);
       setErrore("");
     } catch (error) {
       setErrore(error.message || "Errore nel caricamento log");
@@ -46,14 +58,14 @@ export default function Errori() {
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
             <div>
               <div className="panel-title">Backup operativo & log errori</div>
-              <div className="panel-subtitle">Qui vedi subito pagamenti falliti, webhook Stripe scaduti ed errori backend del tuo ristorante.</div>
+              <div className="panel-subtitle">{integratedMode ? "Qui vedi errori di ordini, cucina, bar, tavoli e sincronizzazione del tuo ristorante." : "Qui vedi subito pagamenti falliti, webhook Stripe scaduti ed errori backend del tuo ristorante."}</div>
             </div>
             <button onClick={loadLogs} style={buttonStyle}>Aggiorna</button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 14, marginTop: 18 }}>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${integratedMode ? 2 : 3}, minmax(0,1fr))`, gap: 14, marginTop: 18 }}>
             <div style={metricStyle}><div className="metric-label">Log aperti</div><div className="metric-value">{aperti}</div></div>
-            <div style={metricStyle}><div className="metric-label">Problemi pagamento</div><div className="metric-value">{pagamenti}</div></div>
+            {!integratedMode ? <div style={metricStyle}><div className="metric-label">Problemi pagamento</div><div className="metric-value">{pagamenti}</div></div> : null}
             <div style={metricStyle}><div className="metric-label">Totale ultimi log</div><div className="metric-value">{logs.length}</div></div>
           </div>
         </div>

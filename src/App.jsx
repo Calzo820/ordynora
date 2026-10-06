@@ -6,6 +6,7 @@ import ConnectionStatus from "./components/ConnectionStatus.jsx";
 import AppInstallPrompt from "./components/AppInstallPrompt.jsx";
 import AppUpdatePrompt from "./components/AppUpdatePrompt.jsx";
 import ServiceUnavailable from "./pages/ServiceUnavailable.jsx";
+import CashModeGate from "./components/CashModeGate.jsx";
 
 const AdminPanel = lazy(() => import("./pages/AdminPanel.jsx"));
 const Bar = lazy(() => import("./pages/Bar.jsx"));
@@ -19,6 +20,7 @@ const Demo = lazy(() => import("./pages/Demo.jsx"));
 const Errori = lazy(() => import("./pages/Errori.jsx"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
 const Landing = lazy(() => import("./pages/Landing.jsx"));
+const Integrazioni = lazy(() => import("./pages/Integrazioni.jsx"));
 const LegalPage = lazy(() => import("./pages/LegalPage.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
@@ -80,12 +82,12 @@ export default function App() {
           <Route path="/super-admin" element={<ProtectedRoute roles={["superadmin"]}><SuperAdmin /></ProtectedRoute>} />
           <Route path="/cucina" element={<ProtectedRoute roles={["owner", "admin", "kitchen"]}><Cucina /></ProtectedRoute>} />
           <Route path="/bar" element={<ProtectedRoute roles={["owner", "admin", "bar"]}><Bar /></ProtectedRoute>} />
-          <Route path="/cassa" element={<ProtectedRoute roles={["owner", "admin", "cashier"]}><Cassa /></ProtectedRoute>} />
+          <Route path="/cassa" element={<ProtectedRoute roles={["owner", "admin", "cashier"]}><CashModeGate><Cassa /></CashModeGate></ProtectedRoute>} />
           <Route path="/tavoli" element={<ProtectedRoute roles={["owner", "admin", "cashier", "waiter"]}><Tavoli /></ProtectedRoute>} />
           <Route path="/qr" element={<ProtectedRoute roles={["owner", "admin"]}><QRCodeTavoli /></ProtectedRoute>} />
           <Route path="/storico" element={<ProtectedRoute roles={["owner", "admin"]}><Storico /></ProtectedRoute>} />
           <Route path="/statistiche" element={<ProtectedRoute roles={["owner", "admin"]}><Statistiche /></ProtectedRoute>} />
-          <Route path="/integrazioni" element={<ProtectedRoute roles={["owner", "admin"]}><Navigate to="/admin?tab=settings" replace /></ProtectedRoute>} />
+          <Route path="/integrazioni" element={<ProtectedRoute roles={["owner", "admin"]}><Integrazioni /></ProtectedRoute>} />
           <Route path="/errori" element={<ProtectedRoute roles={["owner", "admin"]}><Errori /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>

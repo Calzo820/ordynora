@@ -5,6 +5,7 @@ import { apiDelete, apiGet } from "../lib/api";
 import { createRestaurantSocket } from "../lib/realtime";
 import Modal from "../components/Modal";
 import { glowPageStyle, appShellStyle } from "../styles/pageStyles";
+import { getStoredRestaurantMode, persistRestaurantMode } from "../lib/restaurantMode";
 
 function getRistoranteAttivo() {
   return localStorage.getItem("ristorante_attivo") || "";
@@ -110,6 +111,8 @@ function Storico() {
   const [filtroPagamento, setFiltroPagamento] = useState("tutti");
   const [filtroData, setFiltroData] = useState("tutti");
   const [ordineAperto, setOrdineAperto] = useState(null);
+  const [operationMode, setOperationMode] = useState(() => getStoredRestaurantMode());
+  const integratedMode = operationMode === "integrated";
 
   const ristoranteAttivo = getRistoranteAttivo();
 
@@ -123,9 +126,16 @@ function Storico() {
       }
 
       try {
-        const data = await apiGet("/orders?history=true");
+        const [data, restaurant] = await Promise.all([
+          apiGet("/orders?history=true"),
+          apiGet("/restaurants/me"),
+        ]);
         const lista = Array.isArray(data) ? data : data?.orders || [];
-        if (!cancelled) setStorico(lista.map(mapOrderToLegacy));
+        if (!cancelled) {
+          setStorico(lista.map(mapOrderToLegacy));
+          setOperationMode(restaurant?.operationMode || "full");
+          persistRestaurantMode(restaurant?.operationMode || "full");
+        }
       } catch (error) {
         console.warn("Backend non disponibile, uso storico locale", error);
         const dati = JSON.parse(localStorage.getItem(storicoKey(ristoranteAttivo)) || "[]");
@@ -156,7 +166,7 @@ function Storico() {
   const storicoFiltrato = useMemo(() => {
     let lista = [...storico];
 
-    if (filtroPagamento !== "tutti") {
+    if (!integratedMode && filtroPagamento !== "tutti") {
       lista = lista.filter(
         (ordine) =>
           (ordine.pagamento || "").toLowerCase().trim() === filtroPagamento.toLowerCase().trim()
@@ -203,7 +213,7 @@ function Storico() {
 
       lista = lista.filter((ordine) => {
         const matchTavolo = String(ordine.tavolo || "").includes(q);
-        const matchPagamento = String(ordine.pagamento || "").toLowerCase().includes(q);
+        const matchPagamento = !integratedMode && String(ordine.pagamento || "").toLowerCase().includes(q);
         const matchNota = String(ordine.nota || "").toLowerCase().includes(q);
         const matchPiatti = (ordine.piatti || []).some((p) =>
           String(p.nome || "").toLowerCase().includes(q)
@@ -214,7 +224,7 @@ function Storico() {
     }
 
     return lista.sort((a, b) => (b.chiusoIl || b.time || 0) - (a.chiusoIl || a.time || 0));
-  }, [storico, ricerca, filtroPagamento, filtroData]);
+  }, [storico, ricerca, filtroPagamento, filtroData, integratedMode]);
 
   const totaleIncasso = storicoFiltrato.reduce(
     (acc, ordine) => acc + parseNumber(ordine.totale),
@@ -290,11 +300,11 @@ function Storico() {
               <div>
                 <div className="topbar-chip" style={{ marginBottom: 12 }}>
                   <span className="status-dot" style={{ background: "#8b5cf6" }} />
-                  Storico ordini
+                  {integratedMode ? "Registro servizio" : "Storico ordini"}
                 </div>
-                <h1 style={{ margin: 0, fontSize: 34 }}>Storico compatto</h1>
+                <h1 style={{ margin: 0, fontSize: 34 }}>{integratedMode ? "Servizi conclusi" : "Storico compatto"}</h1>
                 <p style={{ marginTop: 10, opacity: 0.9 }}>
-                  {ristoranteAttivo || "Nessun ristorante attivo"} — ordini piccoli, click per vedere i dettagli
+                  {ristoranteAttivo || "Nessun ristorante attivo"} — {integratedMode ? "solo dati operativi, senza duplicare la cassa" : "ordini piccoli, click per vedere i dettagli"}
                 </p>
               </div>
 
@@ -330,11 +340,11 @@ function Storico() {
               <div className="metric-badge">filtrati</div>
             </div>
 
-            <div className="metric-card">
+            {!integratedMode ? <div className="metric-card">
               <div className="metric-label">Incasso</div>
               <div className="metric-value">{formatEuro(totaleIncasso)}</div>
               <div className="metric-badge">totale</div>
-            </div>
+            </div> : null}
 
             <div className="metric-card">
               <div className="metric-label">Articoli</div>
@@ -347,20 +357,20 @@ function Storico() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "2fr 1fr 1fr",
+                gridTemplateColumns: integratedMode ? "2fr 1fr" : "2fr 1fr 1fr",
                 gap: 12,
                 alignItems: "center",
               }}
             >
               <input
                 type="text"
-                placeholder="Cerca tavolo, piatto, nota, pagamento..."
+                placeholder={integratedMode ? "Cerca tavolo, piatto o nota..." : "Cerca tavolo, piatto, nota, pagamento..."}
                 value={ricerca}
                 onChange={(e) => setRicerca(e.target.value)}
                 style={inputStyle}
               />
 
-              <select
+              {!integratedMode ? <select
                 value={filtroPagamento}
                 onChange={(e) => setFiltroPagamento(e.target.value)}
                 style={inputStyle}
@@ -371,7 +381,7 @@ function Storico() {
                     {pag}
                   </option>
                 ))}
-              </select>
+              </select> : null}
 
               <select
                 value={filtroData}
@@ -390,7 +400,7 @@ function Storico() {
             <div className="section-card">
               <div className="panel-title">Nessun ordine nello storico</div>
               <div className="panel-subtitle">
-                Quando chiudi i conti dalla cassa, li vedrai qui.
+                {integratedMode ? "Quando completi un servizio dalla sala, lo vedrai qui." : "Quando chiudi i conti dalla cassa, li vedrai qui."}
               </div>
             </div>
           ) : (
@@ -443,7 +453,7 @@ function Storico() {
                         </div>
                       </div>
 
-                      <div
+                      {!integratedMode ? <div
                         style={{
                           padding: "6px 10px",
                           borderRadius: 999,
@@ -455,18 +465,18 @@ function Storico() {
                         }}
                       >
                         {badgePagamento.label}
-                      </div>
+                      </div> : null}
                     </div>
 
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
+                        gridTemplateColumns: integratedMode ? "1fr" : "1fr 1fr",
                         gap: 10,
                         marginBottom: 10,
                       }}
                     >
-                      <div
+                      {!integratedMode ? <div
                         style={{
                           background: "#f8fafc",
                           borderRadius: 12,
@@ -479,7 +489,7 @@ function Storico() {
                         <div style={{ fontSize: 18, fontWeight: 900, color: "#111827", marginTop: 4 }}>
                           {formatEuro(ordine.totale)}
                         </div>
-                      </div>
+                      </div> : null}
 
                       <div
                         style={{
@@ -562,19 +572,19 @@ function Storico() {
                     marginBottom: 16,
                   }}
                 >
-                  <div className="metric-card">
+                  {!integratedMode ? <div className="metric-card">
                     <div className="metric-label">Totale</div>
                     <div className="metric-value">{formatEuro(ordineAperto.totale)}</div>
                     <div className="metric-badge">incassato</div>
-                  </div>
+                  </div> : null}
 
-                  <div className="metric-card">
+                  {!integratedMode ? <div className="metric-card">
                     <div className="metric-label">Pagamento</div>
                     <div className="metric-value" style={{ fontSize: 22 }}>
                       {ordineAperto.pagamento || "—"}
                     </div>
                     <div className="metric-badge">metodo</div>
-                  </div>
+                  </div> : null}
 
                   <div className="metric-card">
                     <div className="metric-label">Articoli</div>
@@ -660,9 +670,9 @@ function Storico() {
                           </div>
                         </div>
 
-                        <div style={{ fontWeight: 900, color: "#111827", whiteSpace: "nowrap" }}>
+                        {!integratedMode ? <div style={{ fontWeight: 900, color: "#111827", whiteSpace: "nowrap" }}>
                           {formatEuro(parseNumber(p.prezzo) * parseNumber(p.qty))}
-                        </div>
+                        </div> : null}
                       </div>
                     ))}
                   </div>
@@ -671,11 +681,11 @@ function Storico() {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateColumns: integratedMode ? "1fr" : "1fr 1fr",
                     gap: 16,
                   }}
                 >
-                  <div
+                  {!integratedMode ? <div
                     style={{
                       background: "#ffffff",
                       border: "1px solid #e5e7eb",
@@ -706,7 +716,7 @@ function Storico() {
                         <b>{formatEuro(ordineAperto.totale)}</b>
                       </div>
                     </div>
-                  </div>
+                  </div> : null}
 
                   <div
                     style={{

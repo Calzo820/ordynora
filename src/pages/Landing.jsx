@@ -12,7 +12,7 @@ const WHATSAPP_NUMBER = "393240467723";
 const translations = {
   it: {
     nav: { demo: "Demo", privacy: "Privacy", login: "Login", contact: "Parla con noi" },
-    eyebrow: "Menu QR, sala, cucina e cassa in un solo flusso",
+    eyebrow: "Menu QR e servizio, con o senza gestionale",
     title: "Ordynora per ristoranti",
     promise: "Riduci gli errori di sala e tieni il servizio più sotto controllo.",
     lead: "Dal QR del cliente alla comanda, fino al conto: ogni passaggio resta chiaro, aggiornato e collegato durante il servizio.",
@@ -22,9 +22,9 @@ const translations = {
     proof: "Demo gratuita riservata ai primi 3 ristoranti, configurazione inclusa e nessun vincolo iniziale.",
     serviceLabel: "Cosa include Ordynora",
     serviceProof: [
-      "Menu QR collegato a cucina, bar e cassa",
+      "Menu QR collegato a cucina, bar e sala",
       "Comande tracciate per tavolo e stato",
-      "Cassa e sala leggono gli stessi conti",
+      "Cassa Ordynora oppure gestionale già in uso",
       "Setup assistito prima della prova reale",
     ],
     whyLabel: "Perché cambiare software",
@@ -35,9 +35,16 @@ const translations = {
       ["Rendi il menu più ordinato e vendibile", "Categorie, immagini, extra, bevande e dessert restano sempre aggiornati e più facili da proporre nel momento giusto."],
       ["Leggi meglio quello che succede", "Dashboard orientata a coperti, tempi di servizio, venduto per categoria, tavoli lenti e punti critici ricorrenti."],
     ],
+    modesLabel: "Due modalità, zero doppioni",
+    modesTitle: "Si adatta al ristorante senza obbligarlo a cambiare cassa.",
+    modesCopy: "Il locale sceglie una volta chi gestisce pagamenti e fiscalità. Lo staff vede soltanto gli strumenti coerenti con quella scelta.",
+    modes: [
+      ["Ordynora completo", "Per il piccolo ristorante senza gestionale: ordini, sala, cucina, bar, conti e registrazione dei pagamenti nello stesso flusso."],
+      ["Ordynora + gestionale", "Per chi usa già Tilby, Cassa in Cloud, Passepartout o un altro POS: Ordynora coordina il servizio senza creare una seconda cassa."],
+    ],
     pricingLabel: "Prezzi chiari e cliccabili",
     pricingTitle: "Ordynora parte da 49,99 €/mese + IVA.",
-    pricingCopy: "Tutti i piani includono menu QR, cucina, bar, cassa, tavoli, onboarding e portale abbonamento. Clicca un piano per richiedere informazioni.",
+    pricingCopy: "Tutti i piani includono menu QR, sala, cucina, bar, tavoli, onboarding e la modalità più adatta al locale. Clicca un piano per richiedere informazioni.",
     plans: [
       ["Mensile", "49,99 €/mese + IVA", "Rinnovo mensile e disdetta dal portale abbonamento."],
       ["Trimestrale", "134,99 €/3 mesi + IVA", "Per iniziare su una stagione breve con supporto incluso."],
@@ -47,10 +54,10 @@ const translations = {
     clickPlan: "Clicca per richiedere questo piano →",
     betaLabel: "Demo gratuita · primi 3 ristoranti",
     betaTitle: "Ti attivo Ordynora gratuitamente nel tuo ristorante.",
-    betaCopy: "Setup guidato, QR tavoli, menu, cucina, cassa e prima prova servizio insieme. La disponibilità gratuita termina dopo le prime 3 attivazioni.",
+    betaCopy: "Setup guidato, scelta della modalità, QR tavoli, menu, cucina e prima prova servizio insieme. La disponibilità gratuita termina dopo le prime 3 attivazioni.",
     flowLabel: "Flusso operativo",
     flowTitle: "Non solo menu digitale: un modo più chiaro di lavorare durante il servizio.",
-    flowCopy: "Ordynora collega menu, ordini, cucina, cassa e tavoli nello stesso ambiente. Ogni reparto vede le informazioni giuste al momento giusto, senza rincorrere foglietti, messaggi o aggiornamenti a voce.",
+    flowCopy: "Ordynora collega menu, ordini, cucina, bar e tavoli. Se il locale ha già un gestionale, pagamenti e fiscalità restano lì: ogni reparto vede solo ciò che gli serve.",
     classicTitle: "Menu digitale classico",
     classicCopy: "QR, PDF online, modifiche menu e statistiche base.",
     easyTitle: "Ordynora",
@@ -64,7 +71,7 @@ const translations = {
   },
   en: {
     nav: { demo: "Demo", privacy: "Privacy", login: "Login", contact: "Talk to us" },
-    eyebrow: "QR menu, floor, kitchen and checkout in one workflow",
+    eyebrow: "QR menu and service, with or without an existing POS",
     title: "Ordynora for restaurants",
     promise: "Reduce service errors and keep every shift under control.",
     lead: "From the customer's QR code to the order and the bill: every step stays clear, up to date and connected throughout service.",
@@ -73,7 +80,7 @@ const translations = {
     emailUs: "Email us",
     proof: "Free demo for the first 3 restaurants only, setup included and no initial commitment.",
     serviceLabel: "What Ordynora includes",
-    serviceProof: ["QR menu connected to kitchen, bar and checkout", "Orders tracked by table and status", "Checkout and floor staff share the same bills", "Assisted setup before the live trial"],
+    serviceProof: ["QR menu connected to kitchen, bar and floor", "Orders tracked by table and status", "Ordynora checkout or the POS already in use", "Assisted setup before the live trial"],
     whyLabel: "Why change software",
     whyTitle: "The difference is not having a QR code. It is helping the restaurant work better.",
     outcomes: [
@@ -82,17 +89,24 @@ const translations = {
       ["Make your menu clearer and easier to sell", "Categories, images, extras, drinks and desserts stay updated and are easier to suggest at the right time."],
       ["Understand what is happening", "A dashboard focused on covers, service times, sales by category, slow tables and recurring bottlenecks."],
     ],
+    modesLabel: "Two modes, no duplicate tools",
+    modesTitle: "Fits the restaurant without forcing it to replace its POS.",
+    modesCopy: "The restaurant chooses once who owns payments and fiscal work. Staff then see only the tools that belong to that setup.",
+    modes: [
+      ["Complete Ordynora", "For a small restaurant without a management system: orders, floor, kitchen, bar, bills and recorded payments in one workflow."],
+      ["Ordynora + POS", "For restaurants already using a POS: Ordynora coordinates service while payments and fiscal documents stay in the existing system."],
+    ],
     pricingLabel: "Clear, clickable pricing",
     pricingTitle: "Ordynora starts at €49.99/month + VAT.",
-    pricingCopy: "Every plan includes QR menu, kitchen, bar, checkout, tables, onboarding and the subscription portal. Click a plan to ask for details.",
+    pricingCopy: "Every plan includes QR menu, floor, kitchen, bar, tables, onboarding and the operating mode that fits the restaurant. Click a plan to ask for details.",
     plans: [["Monthly", "€49.99/month + VAT", "Monthly renewal and cancellation from the subscription portal."], ["Quarterly", "€134.99/3 months + VAT", "Ideal for starting during a short season, with support included."], ["Six months", "€254.99/6 months + VAT", "The most balanced plan for stabilising menu, QR and operations."], ["Annual", "€449.99/year + VAT", "Best price for restaurants that want continuity."]],
     clickPlan: "Click to request this plan →",
     betaLabel: "Free demo · first 3 restaurants",
     betaTitle: "I will activate Ordynora in your restaurant for free.",
-    betaCopy: "Guided setup, table QR codes, menu, kitchen, checkout and your first live trial together. Free availability ends after the first 3 activations.",
+    betaCopy: "Guided setup, mode selection, table QR codes, menu, kitchen and your first live trial together. Free availability ends after the first 3 activations.",
     flowLabel: "Operational workflow",
     flowTitle: "More than a digital menu: a clearer way to work during service.",
-    flowCopy: "Ordynora connects menu, orders, kitchen, checkout and tables in one environment. Each team sees the right information at the right time.",
+    flowCopy: "Ordynora connects menu, orders, kitchen, bar and tables. If the restaurant already has a POS, payments and fiscal work stay there.",
     classicTitle: "Traditional digital menu", classicCopy: "QR code, online PDF, menu updates and basic statistics.",
     easyTitle: "Ordynora", easyCopy: "Fewer errors, more clarity, an organised menu and one operational workflow.",
     finalTitle: "Fewer manual steps, more control and a better organised service.",
@@ -113,7 +127,8 @@ const translations = {
     serviceProof: ["QR-Menü mit Küche, Bar und Kasse verbunden", "Bestellungen nach Tisch und Status verfolgt", "Kasse und Service sehen dieselben Rechnungen", "Begleitete Einrichtung vor dem Praxistest"],
     whyLabel: "Warum die Software wechseln", whyTitle: "Der Unterschied ist nicht der QR-Code. Entscheidend ist, dass das Restaurant besser arbeitet.",
     outcomes: [["Spitzenzeiten besser bewältigen", "Gäste bestellen per QR, Küche und Bar erhalten die Bestellung sofort und der Service greift nur dort ein, wo er wirklich gebraucht wird."], ["Fehler und manuelle Schritte reduzieren", "Notizen, Varianten, Bestellstatus und Tisch werden in einem Ablauf erfasst: weniger Zettel, Anrufe und Missverständnisse."], ["Das Menü übersichtlicher und verkaufsstärker machen", "Kategorien, Bilder, Extras, Getränke und Desserts bleiben aktuell und lassen sich im richtigen Moment leichter anbieten."], ["Besser verstehen, was passiert", "Dashboard für Gästezahlen, Servicezeiten, Umsatz nach Kategorie, langsame Tische und wiederkehrende Engpässe."]],
-    pricingLabel: "Klare, anklickbare Preise", pricingTitle: "Ordynora ab 49,99 €/Monat zzgl. MwSt.", pricingCopy: "Alle Tarife enthalten QR-Menü, Küche, Bar, Kasse, Tische, Onboarding und Abo-Portal. Tarif anklicken, um Informationen anzufordern.",
+    modesLabel: "Zwei Modi, keine doppelten Werkzeuge", modesTitle: "Ordynora passt sich an, ohne die vorhandene Kasse ersetzen zu müssen.", modesCopy: "Das Restaurant legt einmal fest, wo Zahlungen und Steuerbelege verwaltet werden.", modes: [["Ordynora komplett", "Für kleine Restaurants ohne Verwaltungssystem: Service und interne Kasse in einem Ablauf."], ["Ordynora + Kassensystem", "Für bestehende POS-Systeme: Ordynora steuert den Service, Zahlungen und Fiskaldaten bleiben im vorhandenen System."]],
+    pricingLabel: "Klare, anklickbare Preise", pricingTitle: "Ordynora ab 49,99 €/Monat zzgl. MwSt.", pricingCopy: "Alle Tarife enthalten QR-Menü, Service, Küche, Bar, Tische, Onboarding und den passenden Betriebsmodus.",
     plans: [["Monatlich", "49,99 €/Monat + MwSt.", "Monatliche Verlängerung und Kündigung im Abo-Portal."], ["Vierteljährlich", "134,99 €/3 Monate + MwSt.", "Ideal für den Start in einer kurzen Saison, inklusive Support."], ["Halbjährlich", "254,99 €/6 Monate + MwSt.", "Der ausgewogene Tarif für Menü, QR und Betriebsabläufe."], ["Jährlich", "449,99 €/Jahr + MwSt.", "Bester Preis für einen langfristigen Einsatz."]],
     clickPlan: "Diesen Tarif anfragen →", betaLabel: "Kostenlose Demo · erste 3 Restaurants", betaTitle: "Ich aktiviere Ordynora kostenlos in Ihrem Restaurant.", betaCopy: "Geführte Einrichtung, Tisch-QR-Codes, Menü, Küche, Kasse und erster Praxistest. Das Gratisangebot endet nach den ersten 3 Aktivierungen.",
     flowLabel: "Betriebsablauf", flowTitle: "Mehr als ein digitales Menü: klarere Abläufe während des Service.", flowCopy: "Ordynora verbindet Menü, Bestellungen, Küche, Kasse und Tische in einer Umgebung. Jedes Team sieht die richtigen Informationen zur richtigen Zeit.",
@@ -129,7 +144,8 @@ const translations = {
     serviceProof: ["Menú QR conectado con cocina, bar y caja", "Pedidos controlados por mesa y estado", "Caja y sala comparten las mismas cuentas", "Configuración asistida antes de la prueba real"],
     whyLabel: "Por qué cambiar de software", whyTitle: "La diferencia no está en tener un QR. Está en hacer que el restaurante funcione mejor.",
     outcomes: [["Gestiona mejor las horas punta", "El cliente pide desde el QR, cocina y bar reciben el pedido al instante y la sala interviene solo donde hace falta."], ["Reduce errores y pasos manuales", "Notas, variantes, estado del pedido y mesa se controlan en un único flujo: menos papeles, llamadas y malentendidos."], ["Haz que el menú sea más claro y vendible", "Categorías, imágenes, extras, bebidas y postres siempre actualizados y más fáciles de ofrecer en el momento adecuado."], ["Entiende mejor lo que ocurre", "Panel centrado en comensales, tiempos de servicio, ventas por categoría, mesas lentas y puntos críticos recurrentes."]],
-    pricingLabel: "Precios claros y clicables", pricingTitle: "Ordynora desde 49,99 €/mes + IVA.", pricingCopy: "Todos los planes incluyen menú QR, cocina, bar, caja, mesas, onboarding y portal de suscripción. Haz clic en un plan para pedir información.",
+    modesLabel: "Dos modos, sin funciones duplicadas", modesTitle: "Ordynora se adapta sin obligar al restaurante a cambiar de caja.", modesCopy: "El restaurante decide una vez dónde se gestionan pagos y fiscalidad.", modes: [["Ordynora completo", "Para un restaurante pequeño sin sistema de gestión: servicio y caja interna en un solo flujo."], ["Ordynora + sistema de gestión", "Para quien ya usa un POS: Ordynora coordina el servicio y el sistema existente conserva pagos y fiscalidad."]],
+    pricingLabel: "Precios claros y clicables", pricingTitle: "Ordynora desde 49,99 €/mes + IVA.", pricingCopy: "Todos los planes incluyen menú QR, sala, cocina, bar, mesas, onboarding y el modo más adecuado para el restaurante.",
     plans: [["Mensual", "49,99 €/mes + IVA", "Renovación mensual y cancelación desde el portal de suscripción."], ["Trimestral", "134,99 €/3 meses + IVA", "Ideal para empezar durante una temporada corta, con soporte incluido."], ["Semestral", "254,99 €/6 meses + IVA", "El plan más equilibrado para estabilizar menú, QR y operaciones."], ["Anual", "449,99 €/año + IVA", "El mejor precio para trabajar con continuidad."]],
     clickPlan: "Solicitar este plan →", betaLabel: "Demo gratuita · primeros 3 restaurantes", betaTitle: "Activo Ordynora gratis en tu restaurante.", betaCopy: "Configuración guiada, QR de mesas, menú, cocina, caja y primera prueba juntos. La oferta gratuita termina tras las primeras 3 activaciones.",
     flowLabel: "Flujo operativo", flowTitle: "Más que un menú digital: una forma más clara de trabajar durante el servicio.", flowCopy: "Ordynora conecta menú, pedidos, cocina, caja y mesas en un mismo entorno. Cada equipo ve la información correcta en el momento adecuado.",
@@ -145,7 +161,8 @@ const translations = {
     serviceProof: ["QR-меню связано с кухней, баром и кассой", "Заказы отслеживаются по столу и статусу", "Касса и зал видят одни и те же счета", "Настройка с сопровождением до реального теста"],
     whyLabel: "Зачем менять программу", whyTitle: "Важно не просто иметь QR-код. Важно, чтобы ресторан работал лучше.",
     outcomes: [["Легче справляться с пиковыми часами", "Гость заказывает по QR, кухня и бар сразу получают заказ, а сотрудники зала подключаются только там, где это действительно нужно."], ["Меньше ошибок и ручных действий", "Примечания, варианты, статус заказа и стол собраны в одном процессе: меньше бумажек, звонков и недопонимания."], ["Более понятное и продающее меню", "Категории, фотографии, дополнения, напитки и десерты всегда актуальны, и их легче предложить вовремя."], ["Лучше понимать работу ресторана", "Панель с количеством гостей, временем обслуживания, продажами по категориям, медленными столами и повторяющимися проблемами."]],
-    pricingLabel: "Понятные цены", pricingTitle: "Ordynora — от 49,99 € в месяц + НДС.", pricingCopy: "Все тарифы включают QR-меню, кухню, бар, кассу, столы, подключение и портал подписки. Нажмите на тариф, чтобы узнать подробнее.",
+    modesLabel: "Два режима без дублирования", modesTitle: "Ordynora подстраивается под ресторан и не требует менять существующую кассу.", modesCopy: "Ресторан один раз выбирает, где вести платежи и фискальные операции.", modes: [["Ordynora полностью", "Для небольшого ресторана без системы управления: обслуживание и внутренняя касса в одном процессе."], ["Ordynora + POS", "Если POS уже используется: Ordynora управляет обслуживанием, а платежи и фискальные данные остаются в существующей системе."]],
+    pricingLabel: "Понятные цены", pricingTitle: "Ordynora — от 49,99 € в месяц + НДС.", pricingCopy: "Все тарифы включают QR-меню, зал, кухню, бар, столы, подключение и подходящий режим работы.",
     plans: [["Ежемесячно", "49,99 €/месяц + НДС", "Ежемесячное продление и отмена в портале подписки."], ["На 3 месяца", "134,99 €/3 месяца + НДС", "Удобно для начала короткого сезона, поддержка включена."], ["На 6 месяцев", "254,99 €/6 месяцев + НДС", "Сбалансированный тариф для стабильной работы меню, QR и процессов."], ["На год", "449,99 €/год + НДС", "Лучшая цена для постоянной работы."]],
     clickPlan: "Запросить этот тариф →", betaLabel: "Бесплатное демо · первые 3 ресторана", betaTitle: "Мы бесплатно подключим Ordynora в вашем ресторане.", betaCopy: "Пошаговая настройка, QR-коды столов, меню, кухня, касса и первый тест. Бесплатное предложение действует для первых 3 подключений.",
     flowLabel: "Рабочий процесс", flowTitle: "Больше чем цифровое меню: понятная работа во время обслуживания.", flowCopy: "Ordynora объединяет меню, заказы, кухню, кассу и столы. Каждая команда видит нужную информацию в нужный момент.",
@@ -217,6 +234,13 @@ export default function Landing() {
         <div className="landing-section-title"><span>{t.whyLabel}</span><h2>{t.whyTitle}</h2></div>
         <div className="landing-grid-4">
           {t.outcomes.map(([title, text]) => <Card key={title}><h3>{title}</h3><p>{text}</p></Card>)}
+        </div>
+      </section>
+
+      <section className="landing-section">
+        <div className="landing-section-title"><span>{t.modesLabel}</span><h2>{t.modesTitle}</h2><p>{t.modesCopy}</p></div>
+        <div className="landing-grid-4" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          {t.modes.map(([title, text]) => <Card key={title}><h3>{title}</h3><p>{text}</p></Card>)}
         </div>
       </section>
 

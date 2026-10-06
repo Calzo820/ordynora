@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import prisma from "../lib/prisma.js";
+import { RESTAURANT_MODES } from "../lib/restaurantMode.js";
 import { safeEmit } from "../lib/socketSafe.js";
 import { getTenantCached } from "../lib/tenantCache.js";
 
@@ -75,7 +76,7 @@ async function semanticDuplicate(restaurantId, table, excludedId = "") {
 
 function mapOrderStatusToCashierStatus(order, session) {
   if (!order) return "free";
-  if (order.paymentStatus === "pending" || session?.status === "closing") return "bill_requested";
+  if (order.billRequestedAt || order.paymentStatus === "pending" || session?.status === "closing") return "bill_requested";
   if (order.status === "ready") return "ready";
   if (order.status === "in_progress") return "in_progress";
   if (order.status === "pending") return "pending";
@@ -120,7 +121,7 @@ export const getPublicTableMenu = async (req, res) => {
     );
 
     return res.json({
-      restaurant: { id: table.restaurant.id, name: table.restaurant.name, slug: table.restaurant.slug, primaryColor: table.restaurant.primaryColor, logoUrl: table.restaurant.logoUrl || null, currency: table.restaurant.currency },
+      restaurant: { id: table.restaurant.id, name: table.restaurant.name, slug: table.restaurant.slug, primaryColor: table.restaurant.primaryColor, logoUrl: table.restaurant.logoUrl || null, currency: table.restaurant.currency, operationMode: table.restaurant.operationMode || "full" },
       table: { id: table.id, name: table.name, code: table.code, qrToken: table.qrToken },
       items: items.map((item) => {
         const {
@@ -153,21 +154,28 @@ export const getTables = async (req, res) => {
 export const getTablesStatus = async (req, res) => {
   try {
     const restaurantId = req.user.restaurantId;
-    const rawTables = await prisma.table.findMany({
-      where: { restaurantId },
-      include: {
-        sessions: { where: { status: { in: ["open", "closing"] } }, orderBy: { openedAt: "desc" }, take: 1 },
-        orders: {
-          where: { closedAt: null, status: { notIn: ["cancelled"] } },
-          orderBy: { createdAt: "desc" },
-          include: {
-            items: { include: { menuItem: true } },
-            payments: { orderBy: { createdAt: "asc" } },
+    const [restaurant, rawTables] = await Promise.all([
+      prisma.restaurant.findUnique({
+        where: { id: restaurantId },
+        select: { operationMode: true },
+      }),
+      prisma.table.findMany({
+        where: { restaurantId },
+        include: {
+          sessions: { where: { status: { in: ["open", "closing"] } }, orderBy: { openedAt: "desc" }, take: 1 },
+          orders: {
+            where: { closedAt: null, status: { notIn: ["cancelled"] } },
+            orderBy: { createdAt: "desc" },
+            include: {
+              items: { include: { menuItem: true } },
+              payments: { orderBy: { createdAt: "asc" } },
+            },
           },
         },
-      },
-      orderBy: [{ sortOrder: "asc" }, { code: "asc" }, { name: "asc" }],
-    });
+        orderBy: [{ sortOrder: "asc" }, { code: "asc" }, { name: "asc" }],
+      }),
+    ]);
+    const integrated = restaurant?.operationMode === RESTAURANT_MODES.INTEGRATED;
     const tables = deduplicateTables(rawTables, (table) => (
       (table.orders?.length ? 100 : 0) +
       (table.sessions?.length ? 50 : 0) +
@@ -188,7 +196,7 @@ export const getTablesStatus = async (req, res) => {
         sortOrder: table.sortOrder,
         isActive: table.isActive,
         status: mapOrderStatusToCashierStatus(activeOrder, activeSession),
-        activeSession: activeSession ? { id: activeSession.id, status: activeSession.status, openedAt: activeSession.openedAt, guestName: activeSession.guestName, notes: activeSession.notes, totalAmount: activeSession.totalAmount } : null,
+        activeSession: activeSession ? { id: activeSession.id, status: activeSession.status, openedAt: activeSession.openedAt, guestName: activeSession.guestName, notes: activeSession.notes, ...(integrated ? {} : { totalAmount: activeSession.totalAmount }) } : null,
         activeOrder: activeOrder ? {
           id: activeOrder.id,
           publicToken: activeOrder.publicToken,
@@ -202,21 +210,26 @@ export const getTablesStatus = async (req, res) => {
           servedAt: activeOrder.servedAt,
           closedAt: activeOrder.closedAt,
           tableSessionId: activeOrder.tableSessionId,
-          paymentStatus: activeOrder.paymentStatus,
-          paymentMethod: activeOrder.paymentMethod,
-          billRequested: activeOrder.paymentStatus === "pending" || activeSession?.status === "closing",
+          ...(integrated ? {} : {
+            paymentStatus: activeOrder.paymentStatus,
+            paymentMethod: activeOrder.paymentMethod,
+          }),
+          billRequested: Boolean(activeOrder.billRequestedAt) || activeSession?.status === "closing",
+          billRequestedAt: activeOrder.billRequestedAt,
           tableSessionStatus: activeSession?.status || null,
-          discountAmount: activeOrder.discountAmount,
-          discountPercent: activeOrder.discountPercent,
-          extraAmount: activeOrder.extraAmount,
-          guestCount: activeOrder.guestCount,
-          coverCharge: activeOrder.coverCharge,
-          coverChargePerGuest: activeOrder.coverChargePerGuest,
-          equalSplitEnabled: activeOrder.equalSplitEnabled,
-          billConfiguredAt: activeOrder.billConfiguredAt,
-          billRevision: activeOrder.billRevision,
-          totalAmount,
-          payments: activeOrder.payments,
+          ...(integrated ? {} : {
+            discountAmount: activeOrder.discountAmount,
+            discountPercent: activeOrder.discountPercent,
+            extraAmount: activeOrder.extraAmount,
+            guestCount: activeOrder.guestCount,
+            coverCharge: activeOrder.coverCharge,
+            coverChargePerGuest: activeOrder.coverChargePerGuest,
+            equalSplitEnabled: activeOrder.equalSplitEnabled,
+            billConfiguredAt: activeOrder.billConfiguredAt,
+            billRevision: activeOrder.billRevision,
+            totalAmount,
+            payments: activeOrder.payments,
+          }),
           table: { id: table.id, name: table.name, code: table.code, number: table.code },
           items: activeOrder.items.map((item) => ({
             id: item.id,
@@ -224,7 +237,7 @@ export const getTablesStatus = async (req, res) => {
             quantity: item.quantity,
             notes: item.notes,
             nameSnapshot: item.nameSnapshot,
-            priceSnapshot: item.priceSnapshot,
+            ...(integrated ? {} : { priceSnapshot: item.priceSnapshot }),
             categorySnapshot: item.categorySnapshot,
             preparationArea: item.preparationArea || item.menuItem?.preparationArea || null,
             preparationStatus: item.preparationStatus,
@@ -241,7 +254,11 @@ export const getTablesStatus = async (req, res) => {
       };
     });
 
-    return res.json({ totalTables: mapped.length, tables: mapped });
+    return res.json({
+      operationMode: restaurant?.operationMode || "full",
+      totalTables: mapped.length,
+      tables: mapped,
+    });
   } catch (error) {
     console.error("getTablesStatus error:", error);
     return res.status(500).json({ message: "Errore durante recupero stato tavoli" });

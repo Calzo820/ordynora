@@ -61,10 +61,52 @@ const GUIDES = {
   },
 };
 
-export function getQuickGuide(role) {
+const INTEGRATED_GUIDES = {
+  owner: {
+    eyebrow: "Guida titolare · con gestionale",
+    title: "Un flusso, due sistemi senza doppioni",
+    intro: "Ordynora segue il servizio; il gestionale resta l'unico punto per incassi e documenti fiscali.",
+    steps: [
+      { title: "Controlla il collegamento", text: "Verifica modalità e gestionale scelto.", to: "/integrazioni" },
+      { title: "Segui il servizio", text: "Tavoli, comande e portate restano nella Sala.", to: "/tavoli" },
+      { title: "Libera il tavolo", text: "Dopo il pagamento esterno, completa il servizio dalla Sala.", to: "/tavoli" },
+    ],
+  },
+  admin: {
+    eyebrow: "Guida responsabile · con gestionale",
+    title: "Gestisci il turno senza una seconda cassa",
+    intro: "Configura menu e staff, poi usa Ordynora solo per il flusso operativo.",
+    steps: [
+      { title: "Prepara", text: "Menu, tavoli e ruoli sono nella Gestione.", to: "/admin?tab=menu" },
+      { title: "Coordina", text: "Sala, Cucina e Bar lavorano sullo stesso ordine.", to: "/tavoli" },
+      { title: "Completa", text: "Chiudi nel gestionale e libera il tavolo dalla Sala.", to: "/tavoli" },
+    ],
+  },
+  cashier: {
+    eyebrow: "Guida conto esterno",
+    title: "Il tuo lavoro è nella mappa tavoli",
+    intro: "Incasso e documento fiscale restano nel gestionale; Ordynora serve a tenere corretta l'occupazione della sala.",
+    steps: [
+      { title: "Apri il tavolo", text: "Controlla che la comanda sia stata servita.", to: "/tavoli" },
+      { title: "Chiudi nel gestionale", text: "Registra pagamento e documento nel sistema di cassa.", to: "/tavoli" },
+      { title: "Libera in Ordynora", text: "Premi Pagato nel gestionale · libera tavolo.", to: "/tavoli" },
+    ],
+  },
+  waiter: {
+    ...GUIDES.waiter,
+    steps: [
+      ...GUIDES.waiter.steps.slice(0, 2),
+      { title: "Completa il tavolo", text: "Segna servito; dopo la cassa esterna il tavolo potrà essere liberato.", to: "/tavoli" },
+    ],
+  },
+};
+
+export function getQuickGuide(role, operationMode = "full") {
+  if (operationMode === "integrated" && INTEGRATED_GUIDES[role]) return INTEGRATED_GUIDES[role];
   return GUIDES[role] || GUIDES.owner;
 }
 
-export function quickGuideStorageKey(role) {
-  return `ordynora_quick_guide_v1_${role || "owner"}`;
+export function quickGuideStorageKey(role, operationMode = "full") {
+  const baseKey = `ordynora_quick_guide_v1_${role || "owner"}`;
+  return operationMode === "integrated" ? `${baseKey}_integrated` : baseKey;
 }

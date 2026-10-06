@@ -24,6 +24,7 @@ import systemRoutes from "./routes/system.routes.js";
 import translationRoutes from "./routes/translation.routes.js";
 import cashRoutes from "./routes/cash.routes.js";
 import printRoutes from "./routes/print.routes.js";
+import integrationRoutes from "./routes/integration.routes.js";
 import { handleStripeWebhook } from "./controllers/payment.controller.js";
 import prisma from "./lib/prisma.js";
 import { validateEnvironment } from "./lib/env.js";
@@ -69,6 +70,7 @@ const API_PREFIXES = [
   "/demo",
   "/system",
   "/i18n",
+  "/integrations",
   "/api",
 ];
 
@@ -278,6 +280,7 @@ app.use("/logs", logRoutes);
 app.use("/demo", demoRoutes);
 app.use("/system", systemRoutes);
 app.use("/i18n", translationRoutes);
+app.use("/integrations", integrationRoutes);
 
 app.use(API_PREFIXES, (req, res, next) => {
   const acceptsHtml = req.method === "GET" && String(req.headers.accept || "").includes("text/html");

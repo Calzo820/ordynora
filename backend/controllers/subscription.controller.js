@@ -67,6 +67,7 @@ function serializeSubscription(subscription, restaurant) {
           name: restaurant.name,
           slug: restaurant.slug,
           plan: restaurant.plan,
+          operationMode: restaurant.operationMode || "full",
           isActive: restaurant.isActive,
           stripeCustomerId: restaurant.stripeCustomerId,
         }

@@ -1,0 +1,1 @@
+pilot_id,restaurant_code,service_number,date,start_time,role,device,os_browser,connection,flow_step,task_seconds,completed_without_help,help_count,severity,expected,actual,workaround,request_id,screenshot_link,owner,resolution_status,resolved_at,notes

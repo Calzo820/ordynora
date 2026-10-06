@@ -20,3 +20,11 @@ for (const role of ["owner", "admin", "waiter", "kitchen", "bar", "cashier"]) {
 test("un ruolo sconosciuto riceve una guida sicura", () => {
   assert.equal(getQuickGuide("unknown").steps.length, 3);
 });
+
+test("la modalità integrata non guida mai il cassiere verso la cassa Ordynora", () => {
+  const guide = getQuickGuide("cashier", "integrated");
+  assert.equal(guide.steps.length, 3);
+  assert.ok(guide.steps.every((step) => step.to === "/tavoli"));
+  assert.match(guide.intro, /gestionale/i);
+  assert.match(quickGuideStorageKey("cashier", "integrated"), /integrated$/);
+});

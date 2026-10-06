@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import Stripe from "stripe";
 import prisma from "../lib/prisma.js";
+import { restaurantCapabilities } from "../lib/restaurantMode.js";
 import { logError } from "../lib/logger.js";
 import { sendSupportAccessNotification } from "../lib/mailer.js";
 
@@ -82,6 +83,7 @@ function serializeRestaurant(restaurant) {
     logoUrl: restaurant.logoUrl,
     currency: restaurant.currency,
     plan: restaurant.plan,
+    operationMode: restaurant.operationMode || "full",
     isActive: restaurant.isActive,
     createdAt: restaurant.createdAt,
     updatedAt: restaurant.updatedAt,
@@ -422,6 +424,7 @@ export const impersonateRestaurantForSuperAdmin = async (req, res) => {
         currency: restaurant.currency,
         isActive: restaurant.isActive,
         plan: restaurant.plan,
+        operationMode: restaurant.operationMode || "full",
       },
     });
   } catch (error) {
@@ -438,7 +441,10 @@ export const getMyRestaurant = async (req, res) => {
       return res.status(404).json({ message: "Ristorante non trovato" });
     }
 
-    return res.json(restaurant);
+    return res.json({
+      ...restaurant,
+      capabilities: restaurantCapabilities(restaurant.operationMode),
+    });
   } catch (error) {
     console.error("getMyRestaurant error:", error);
     return res.status(500).json({ message: "Errore server" });

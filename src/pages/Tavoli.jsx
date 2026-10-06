@@ -5,6 +5,7 @@ import { apiDelete, apiGet, apiPatch, apiPost } from "../lib/api";
 import { summarizeCourseFlow } from "../lib/courseFlow";
 import { createRestaurantSocket } from "../lib/realtime";
 import { glowPageStyle } from "../styles/pageStyles";
+import { isIntegratedMode, persistRestaurantMode } from "../lib/restaurantMode";
 
 const ACTIVE_RESERVATION_STATUSES = new Set(["booked", "seated"]);
 const STATUS_LABELS = {
@@ -227,6 +228,7 @@ export default function Tavoli() {
     const activeTables = (Array.isArray(tablesData) ? tablesData : []).filter((table) => table.isActive !== false);
     setTables(deduplicateTables(activeTables, (table) => (table.isActive !== false ? 10 : 0)));
     setRestaurant(restaurantData || null);
+    persistRestaurantMode(restaurantData?.operationMode || "full");
     setTableStatuses(deduplicateTables(normalizeStatuses(statusesData), (table) => (
       (table.activeOrder ? 100 : 0) +
       (table.activeSession ? 50 : 0) +
@@ -372,6 +374,7 @@ export default function Tavoli() {
   }, [normalizedQuery, tableCards]);
 
   const selectedTable = tableCards.find((table) => table.id === selectedTableId) || null;
+  const integratedMode = isIntegratedMode(restaurant?.operationMode);
   const selectedCourseFlow = useMemo(
     () => summarizeCourseFlow(selectedTable?.activeOrder?.items || []),
     [selectedTable]
@@ -562,6 +565,27 @@ export default function Tavoli() {
     }
   }
 
+  async function completeExternalService(table) {
+    if (!table?.activeOrder?.id || table.activeOrder.status !== "served" || saving) return;
+    const confirmed = window.confirm(
+      `Confermi che il conto di ${formatTableLabel(table)} è stato gestito nel gestionale esterno? Il tavolo verrà liberato.`
+    );
+    if (!confirmed) return;
+    try {
+      setSaving(true);
+      setError("");
+      setMessage("");
+      const result = await apiPost(`/orders/${table.activeOrder.id}/complete-service`, {});
+      setMessage(result.message || `${formatTableLabel(table)} liberato.`);
+      setSelectedTableId("");
+      await loadCore();
+    } catch (closeError) {
+      setError(closeError.message || "Non riesco a completare il servizio.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const menuLink = selectedTable && restaurant?.slug
     ? `${window.location.origin}/menu/${restaurant.slug}/${selectedTable.qrToken}`
     : "";
@@ -570,6 +594,12 @@ export default function Tavoli() {
     <div style={glowPageStyle}>
       <Navbar />
       <main className="tables-calendar-page">
+        {integratedMode ? (
+          <section className="ordy-mode-banner" aria-label="Modalità con gestionale">
+            <div><span>Modalità operativa</span><strong>Ordynora segue il servizio, il gestionale chiude il conto</strong></div>
+            <p>Quando hai registrato pagamento e documento fiscale nel gestionale, apri il tavolo servito e premi “Libera tavolo”.</p>
+          </section>
+        ) : null}
         <section className="tables-calendar-toolbar">
           <div>
             <span>Sala e prenotazioni</span>
@@ -758,6 +788,11 @@ export default function Tavoli() {
                     {selectedTable.activeOrder.status === "ready" && ["owner", "admin", "waiter"].includes(currentRole) ? (
                       <button type="button" onClick={() => markOrderServed(selectedTable)} disabled={saving}>
                         {saving ? "Confermo..." : "Consegnato al tavolo"}
+                      </button>
+                    ) : null}
+                    {integratedMode && selectedTable.activeOrder.status === "served" && ["owner", "admin", "waiter", "cashier"].includes(currentRole) ? (
+                      <button type="button" className="table-service-actions__external-close" onClick={() => completeExternalService(selectedTable)} disabled={saving}>
+                        {saving ? "Completo..." : "Pagato nel gestionale · libera tavolo"}
                       </button>
                     ) : null}
                     {selectedCourseFlow.hasMultipleCourses ? (

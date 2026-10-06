@@ -87,6 +87,14 @@ export function hasPermission(role, permission) {
 
 export function getHomePathByRole(role, user = null) {
   if (isSuperAdminUser(user) || normalizeRole(role) === "superadmin") return ROLE_HOME.superadmin;
+  if (normalizeRole(role) === "cashier" && typeof localStorage !== "undefined") {
+    try {
+      const restaurant = JSON.parse(localStorage.getItem("auth_restaurant") || "null");
+      if (restaurant?.operationMode === "integrated") return "/tavoli";
+    } catch {
+      // A malformed local cache must never block login.
+    }
+  }
   return ROLE_HOME[normalizeRole(role)] || "/dashboard";
 }
 

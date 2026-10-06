@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../lib/api";
+import { persistRestaurantMode } from "../lib/restaurantMode";
 import { imageFileToDataUrl } from "../lib/imageFiles";
 import { MENU_IMPORT_TEMPLATE, parseMenuCsv } from "../lib/menuImport";
 import { getRoleLabel } from "../lib/roles";
@@ -169,6 +170,7 @@ export default function AdminPanel({ embedded = false } = {}) {
   const [userForm, setUserForm] = useState(emptyUser);
   const [editingUserId, setEditingUserId] = useState("");
   const [userAccessForm, setUserAccessForm] = useState({ role: "waiter", pin: "" });
+  const integratedMode = restaurant?.operationMode === "integrated";
 
   async function loadData() {
     try {
@@ -182,6 +184,7 @@ export default function AdminPanel({ embedded = false } = {}) {
       ]);
 
       setRestaurant(restaurantData);
+      persistRestaurantMode(restaurantData?.operationMode || "full");
       setRestaurantForm({
         name: restaurantData?.name || "",
         primaryColor: restaurantData?.primaryColor || "#1d4ed8",
@@ -718,9 +721,9 @@ export default function AdminPanel({ embedded = false } = {}) {
                 <TextInput placeholder="Es. glutine, uova, latte" value={itemForm.allergens} onChange={(e) => setItemForm((prev) => ({ ...prev, allergens: e.target.value }))} />
               </Field>
               <details className="menu-management-details">
-                <summary>Costi e scorte</summary>
+                <summary>{integratedMode ? "Scorte operative" : "Costi e scorte"}</summary>
                 <div className="menu-management-details__body">
-                  <div className="menu-editor-row wide-price">
+                  {!integratedMode ? <div className="menu-editor-row wide-price">
                     <Field label="Costo materia prima">
                       <TextInput placeholder="4.20" type="number" min="0" step="0.01" value={itemForm.costPrice} onChange={(e) => setItemForm((prev) => ({ ...prev, costPrice: e.target.value }))} />
                     </Field>
@@ -729,7 +732,7 @@ export default function AdminPanel({ embedded = false } = {}) {
                       <strong>{itemForm.price ? `${marginPercent(itemForm).toFixed(0)}%` : "-"}</strong>
                       <small>{itemForm.price ? formatEuro(Number(itemForm.price) - Number(itemForm.costPrice || 0)) : "Inserisci prezzo e costo"}</small>
                     </div>
-                  </div>
+                  </div> : null}
                   <label className="management-check-row">
                     <input type="checkbox" checked={itemForm.trackStock} onChange={(e) => setItemForm((prev) => ({ ...prev, trackStock: e.target.checked }))} />
                     <span><b>Controlla le scorte</b><small>Quando arrivano a zero, il prodotto diventa non disponibile.</small></span>
@@ -818,7 +821,7 @@ export default function AdminPanel({ embedded = false } = {}) {
                   <div className="management-row-meta">{item.category || "Senza categoria"} - {item.preparationArea === "bar" ? "Bar" : "Cucina"}</div>
                   <div className="management-price">
                     {formatEuro(item.price)}
-                    {Number(item.costPrice) > 0 ? <small> · margine {marginPercent(item).toFixed(0)}%</small> : null}
+                    {!integratedMode && Number(item.costPrice) > 0 ? <small> · margine {marginPercent(item).toFixed(0)}%</small> : null}
                   </div>
                   {item.trackStock ? (
                     <div className={`stock-inline ${Number(item.stockQuantity) <= Number(item.lowStockThreshold) ? "is-low" : ""}`}>
@@ -938,7 +941,7 @@ export default function AdminPanel({ embedded = false } = {}) {
               <option value="kitchen">Cucina</option>
               <option value="bar">Bar</option>
               <option value="waiter">Sala / cameriere</option>
-              <option value="cashier">Cassa</option>
+              <option value="cashier">{integratedMode ? "Tavoli / conto esterno" : "Cassa"}</option>
               <option value="admin">Admin</option>
             </SelectInput>
           </Field>
@@ -974,7 +977,7 @@ export default function AdminPanel({ embedded = false } = {}) {
                         <option value="kitchen">Cucina</option>
                         <option value="bar">Bar</option>
                         <option value="waiter">Sala / cameriere</option>
-                        <option value="cashier">Cassa</option>
+                        <option value="cashier">{integratedMode ? "Tavoli / conto esterno" : "Cassa"}</option>
                         <option value="admin">Admin</option>
                       </select>
                     </label>
@@ -1141,6 +1144,13 @@ export default function AdminPanel({ embedded = false } = {}) {
               <p className="management-hero-subtitle">{pageSubtitle}</p>
             </div>
           </div>
+
+          {integratedMode ? (
+            <section className="ordy-mode-banner">
+              <div><span>Modalità con gestionale</span><strong>Menu operativo, non amministrativo</strong></div>
+              <p>Qui gestisci prezzi mostrati al cliente, disponibilità, allergeni e reparti. Costi, IVA e margini restano nel gestionale collegato.</p>
+            </section>
+          ) : null}
 
           <nav className="management-tabs" aria-label="Sezioni gestione ristorante">
             {managementTabs.map((tab) => (

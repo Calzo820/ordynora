@@ -5,6 +5,10 @@ import { calculateBill, clampGuestCount, moneyNumber } from "../lib/billing.js";
 import { createOrderPrintJobs, preparationAreas } from "../lib/printJobs.js";
 import { safeEmit } from "../lib/socketSafe.js";
 import { invalidateTenantCache } from "../lib/tenantCache.js";
+import {
+  RESTAURANT_MODES,
+  getRestaurantMode,
+} from "../lib/restaurantMode.js";
 
 function parseNumber(value, fallback = 0) {
   const n = Number(value);
@@ -116,6 +120,7 @@ function publicOrderPayload(order) {
     notes: order.notes,
     orderNumber: publicOrderNumber(order.orderNumber),
     restaurantName: order.restaurant?.name,
+    operationMode: order.restaurant?.operationMode || "full",
     tableName: order.table?.name,
     table: order.table ? { id: order.table.id, name: order.table.name, code: order.table.code } : null,
     items: order.items,
@@ -128,6 +133,7 @@ function publicOrderPayload(order) {
     coverChargePerGuest: order.coverChargePerGuest,
     equalSplitEnabled: order.equalSplitEnabled,
     billConfiguredAt: order.billConfiguredAt,
+    billRequestedAt: order.billRequestedAt,
     billRevision: order.billRevision,
     createdAt: order.createdAt,
   };
@@ -491,6 +497,7 @@ export const getPublicOrderByToken = async (req, res) => {
       status: order.status,
       notes: order.notes,
       restaurantName: order.restaurant?.name || null,
+      operationMode: order.restaurant?.operationMode || "full",
       tableName: order.table?.name || null,
       totalAmount: order.totalAmount,
       discountAmount: order.discountAmount,
@@ -501,6 +508,7 @@ export const getPublicOrderByToken = async (req, res) => {
       coverChargePerGuest: order.coverChargePerGuest,
       equalSplitEnabled: order.equalSplitEnabled,
       billConfiguredAt: order.billConfiguredAt,
+      billRequestedAt: order.billRequestedAt,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
       acceptedAt: order.acceptedAt,
@@ -551,7 +559,12 @@ export const getOrders = async (req, res) => {
       if (to) where.createdAt.lte = new Date(String(to));
     }
 
-    const orders = await prisma.order.findMany({
+    const [restaurant, orders] = await Promise.all([
+      prisma.restaurant.findUnique({
+        where: { id: req.user.restaurantId },
+        select: { operationMode: true },
+      }),
+      prisma.order.findMany({
       where,
       include: {
         table: true,
@@ -560,9 +573,33 @@ export const getOrders = async (req, res) => {
         statusHistory: { orderBy: { createdAt: "asc" } },
       },
       orderBy: { createdAt: "desc" },
-    });
+      }),
+    ]);
 
-    return res.json(orders.map((order) => ({ ...order, orderNumberLabel: publicOrderNumber(order.orderNumber) })));
+    const integrated = restaurant?.operationMode === RESTAURANT_MODES.INTEGRATED;
+    return res.json(orders.map((order) => {
+      if (!integrated) return { ...order, orderNumberLabel: publicOrderNumber(order.orderNumber) };
+      const {
+        totalAmount: _totalAmount,
+        discountAmount: _discountAmount,
+        discountPercent: _discountPercent,
+        extraAmount: _extraAmount,
+        coverCharge: _coverCharge,
+        paymentStatus: _paymentStatus,
+        paymentMethod: _paymentMethod,
+        payments: _payments,
+        ...operationalOrder
+      } = order;
+      return {
+        ...operationalOrder,
+        operationMode: RESTAURANT_MODES.INTEGRATED,
+        orderNumberLabel: publicOrderNumber(order.orderNumber),
+        items: (order.items || []).map((item) => {
+          const { priceSnapshot: _price, costSnapshot: _cost, ...operationalItem } = item;
+          return operationalItem;
+        }),
+      };
+    }));
   } catch (error) {
     console.error("getOrders error:", error);
     return res.status(500).json({ message: "Errore durante il recupero ordini" });
@@ -1003,6 +1040,12 @@ export const closeOrder = async (req, res) => {
     }
 
     const outcome = await prisma.$transaction(async (tx) => {
+      const mode = await getRestaurantMode(tx, req.user.restaurantId);
+      if (mode === RESTAURANT_MODES.INTEGRATED) {
+        const modeError = new Error("La chiusura con pagamento è gestita dal gestionale collegato.");
+        modeError.code = "EXTERNAL_POS_OWNS_FEATURE";
+        throw modeError;
+      }
       const lock = await tx.order.updateMany({
         where: { id, restaurantId: req.user.restaurantId, closedAt: null },
         data: { updatedAt: new Date() },
@@ -1102,6 +1145,7 @@ export const closeOrder = async (req, res) => {
           paymentMethod: methods.length === 1 ? methods[0] : "other",
           reopenedAt: null,
           reopenedByUserId: null,
+          settlementSource: "ordynora",
         },
         include: { table: true, items: true, payments: { orderBy: { createdAt: "asc" } } },
       });
@@ -1170,8 +1214,125 @@ export const closeOrder = async (req, res) => {
       }
     }
     if (error?.code === "OVERPAYMENT") return res.status(400).json({ message: error.message });
-    if (error?.code === "PAYMENT_IN_PROGRESS") return res.status(409).json({ message: error.message });
+    if (["PAYMENT_IN_PROGRESS", "EXTERNAL_POS_OWNS_FEATURE"].includes(error?.code)) {
+      return res.status(409).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({ message: "Errore durante chiusura conto" });
+  }
+};
+
+export const closeOrderOperationally = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const operationMode = await getRestaurantMode(prisma, req.user.restaurantId);
+    if (operationMode !== RESTAURANT_MODES.INTEGRATED) {
+      return res.status(409).json({
+        code: "FULL_MODE_USES_CASH_DESK",
+        message: "In modalità completa chiudi il conto dalla Cassa Ordynora.",
+      });
+    }
+
+    const order = await ensureRestaurantAccess(req, id);
+    if (!order) return res.status(404).json({ message: "Ordine non trovato" });
+    if (order === "FORBIDDEN") return res.status(403).json({ message: "Accesso negato" });
+    if (order.closedAt) {
+      return res.json({ message: "Servizio già completato", order, alreadyProcessed: true });
+    }
+    if (order.status !== "served") {
+      return res.status(409).json({
+        code: "ORDER_NOT_SERVED",
+        message: "Prima conferma che l'ordine è stato consegnato al tavolo.",
+      });
+    }
+
+    const outcome = await prisma.$transaction(async (tx) => {
+      const modeAtClose = await getRestaurantMode(tx, req.user.restaurantId);
+      if (modeAtClose !== RESTAURANT_MODES.INTEGRATED) {
+        const modeError = new Error("La modalità del ristorante è cambiata. Usa la Cassa Ordynora.");
+        modeError.code = "RESTAURANT_MODE_CHANGED";
+        throw modeError;
+      }
+      const internalPayments = await tx.paymentTransaction.count({
+        where: { orderId: id, status: { in: ["paid", "pending"] } },
+      });
+      if (internalPayments > 0) {
+        const error = new Error("Questo conto contiene pagamenti Ordynora e non può essere passato alla cassa esterna.");
+        error.code = "INTERNAL_PAYMENTS_FOUND";
+        throw error;
+      }
+
+      const closedAt = new Date();
+      const lock = await tx.order.updateMany({
+        where: { id, restaurantId: req.user.restaurantId, closedAt: null, status: "served" },
+        data: {
+          closedAt,
+          settlementSource: "external_pos",
+          paymentStatus: "unpaid",
+          paymentMethod: null,
+          reopenedAt: null,
+          reopenedByUserId: null,
+        },
+      });
+      if (lock.count !== 1) {
+        const error = new Error("Il servizio è già stato completato da un altro dispositivo.");
+        error.code = "ORDER_ALREADY_CLOSED";
+        throw error;
+      }
+
+      const updated = await tx.order.findUnique({
+        where: { id },
+        include: { table: true, items: true },
+      });
+      if (updated?.tableSessionId) {
+        await recalcSessionTotal(tx, updated.tableSessionId);
+        const openOrdersCount = await tx.order.count({
+          where: {
+            tableSessionId: updated.tableSessionId,
+            closedAt: null,
+            status: { notIn: ["cancelled"] },
+          },
+        });
+        if (openOrdersCount === 0) {
+          await tx.tableSession.update({
+            where: { id: updated.tableSessionId },
+            data: { status: "closed", closedAt },
+          });
+        }
+      }
+      await writeAudit(tx, req, {
+        action: "order.service_completed_external_pos",
+        entityType: "order",
+        entityId: id,
+        metadata: { settlementSource: "external_pos" },
+      });
+      return updated;
+    });
+
+    emitSocket(req, "order-closed", {
+      orderId: outcome.id,
+      tableName: outcome.table?.name,
+      tableId: outcome.table?.id,
+      restaurantId: outcome.restaurantId,
+      status: outcome.status,
+      closedAt: outcome.closedAt,
+      settlementSource: "external_pos",
+    });
+    emitSocket(req, "table-updated", {
+      tableName: outcome.table?.name,
+      tableId: outcome.table?.id,
+      restaurantId: outcome.restaurantId,
+      reason: "external-pos-service-completed",
+    });
+    return res.json({
+      message: "Tavolo liberato. Pagamento e documento fiscale restano nel gestionale collegato.",
+      order: outcome,
+    });
+  } catch (error) {
+    console.error("closeOrderOperationally error:", error);
+    if (["INTERNAL_PAYMENTS_FOUND", "ORDER_ALREADY_CLOSED", "RESTAURANT_MODE_CHANGED"].includes(error?.code)) {
+      return res.status(409).json({ code: error.code, message: error.message });
+    }
+    return res.status(500).json({ message: "Errore durante il completamento del servizio" });
   }
 };
 
@@ -1211,6 +1372,12 @@ export const addOrderPayment = async (req, res) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      const mode = await getRestaurantMode(tx, req.user.restaurantId);
+      if (mode === RESTAURANT_MODES.INTEGRATED) {
+        const modeError = new Error("La registrazione del pagamento è gestita dal gestionale collegato.");
+        modeError.code = "EXTERNAL_POS_OWNS_FEATURE";
+        throw modeError;
+      }
       const lock = await tx.order.updateMany({
         where: { id, restaurantId: req.user.restaurantId, closedAt: null },
         data: { updatedAt: new Date() },
@@ -1294,7 +1461,9 @@ export const addOrderPayment = async (req, res) => {
       }
     }
     if (error?.code === "ORDER_ALREADY_CLOSED") return res.status(409).json({ message: error.message });
-    if (error?.code === "PAYMENT_IN_PROGRESS") return res.status(409).json({ message: error.message });
+    if (["PAYMENT_IN_PROGRESS", "EXTERNAL_POS_OWNS_FEATURE"].includes(error?.code)) {
+      return res.status(409).json({ code: error.code, message: error.message });
+    }
     if (error?.code === "OVERPAYMENT") return res.status(400).json({ message: error.message });
     return res.status(500).json({ message: "Errore durante la registrazione del pagamento" });
   }
@@ -1603,6 +1772,7 @@ export const reopenOrder = async (req, res) => {
           servedAt: null,
           reopenedAt: new Date(),
           reopenedByUserId: req.user?.userId || null,
+          billRequestedAt: null,
           billRevision: { increment: 1 },
         },
         include: { table: true, items: true, payments: { orderBy: { createdAt: "asc" } } },
@@ -1762,7 +1932,7 @@ export const requestPublicBill = async (req, res) => {
       }
       return tx.order.update({
         where: { id: order.id },
-        data: { paymentStatus: "pending" },
+        data: { billRequestedAt: new Date() },
         include: { table: true, restaurant: true, tableSession: true },
       });
     });
@@ -1775,6 +1945,7 @@ export const requestPublicBill = async (req, res) => {
       restaurantId: updated.restaurantId,
       restaurantName: updated.restaurant?.name,
       paymentStatus: updated.paymentStatus,
+      billRequestedAt: updated.billRequestedAt,
       tableSessionStatus: updated.tableSession?.status || "closing",
       requestedAt: new Date().toISOString(),
     };

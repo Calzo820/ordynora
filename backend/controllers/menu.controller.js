@@ -3,6 +3,7 @@ import { billingBlockPayload, resolveBillingState } from "../lib/billingPolicy.j
 import { writeAudit } from "../lib/audit.js";
 import { safeEmit } from "../lib/socketSafe.js";
 import { getTenantCached, invalidateTenantCache } from "../lib/tenantCache.js";
+import { RESTAURANT_MODES, getRestaurantMode } from "../lib/restaurantMode.js";
 
 const VALID_AREAS = ["kitchen", "bar"];
 
@@ -138,17 +139,33 @@ function publicMenuItem(item) {
   return safeItem;
 }
 
+function operationalMenuItem(item) {
+  const { costPrice: _costPrice, vatRate: _vatRate, ...safeItem } = item;
+  return safeItem;
+}
+
+function removeExternalPosOwnedFields(data, mode) {
+  if (mode !== RESTAURANT_MODES.INTEGRATED) return data;
+  const safe = { ...data };
+  delete safe.costPrice;
+  delete safe.vatRate;
+  return safe;
+}
+
 export const getMenuItems = async (req, res) => {
   try {
-    const items = await prisma.menuItem.findMany({
-      where: {
-        restaurantId: req.user.restaurantId,
-        isDeleted: false,
-      },
-      orderBy: [{ sortOrder: "asc" }, { category: "asc" }, { createdAt: "desc" }],
-    });
+    const [mode, items] = await Promise.all([
+      getRestaurantMode(prisma, req.user.restaurantId),
+      prisma.menuItem.findMany({
+        where: {
+          restaurantId: req.user.restaurantId,
+          isDeleted: false,
+        },
+        orderBy: [{ sortOrder: "asc" }, { category: "asc" }, { createdAt: "desc" }],
+      }),
+    ]);
 
-    return res.json(items);
+    return res.json(mode === RESTAURANT_MODES.INTEGRATED ? items.map(operationalMenuItem) : items);
   } catch (error) {
     console.error("getMenuItems error:", error);
     return res.status(500).json({ message: "Errore server nel recupero del menu" });
@@ -157,7 +174,8 @@ export const getMenuItems = async (req, res) => {
 
 export const createMenuItem = async (req, res) => {
   try {
-    const data = buildMenuItemData(req.body);
+    const mode = await getRestaurantMode(prisma, req.user.restaurantId);
+    const data = removeExternalPosOwnedFields(buildMenuItemData(req.body), mode);
 
     if (!data.name || data.price === undefined || !data.preparationArea) {
       return res.status(400).json({ message: "name, price e preparationArea sono obbligatori" });
@@ -196,7 +214,10 @@ export const createMenuItem = async (req, res) => {
     });
 
     emitMenuUpdate(req, item.id, "created");
-    return res.status(201).json({ message: "Prodotto creato", item });
+    return res.status(201).json({
+      message: "Prodotto creato",
+      item: mode === RESTAURANT_MODES.INTEGRATED ? operationalMenuItem(item) : item,
+    });
   } catch (error) {
     console.error("createMenuItem error:", error);
     return res.status(400).json({ message: error.message || "Errore nella creazione del prodotto" });
@@ -209,13 +230,14 @@ export const importMenuItems = async (req, res) => {
     if (!rows.length) return res.status(400).json({ message: "Nessun prodotto da importare" });
     if (rows.length > 500) return res.status(413).json({ message: "Massimo 500 prodotti per importazione" });
 
+    const mode = await getRestaurantMode(prisma, req.user.restaurantId);
     const normalizedRows = rows.map((row, index) => {
       try {
         const data = buildMenuItemData(row || {});
         if (!data.name || data.price === undefined) throw new Error("nome e prezzo sono obbligatori");
         if (!data.preparationArea) data.preparationArea = "kitchen";
         if (!data.category) data.category = "Menu";
-        return data;
+        return removeExternalPosOwnedFields(data, mode);
       } catch (error) {
         const validationError = new Error(`Riga ${index + 2}: ${error.message}`);
         validationError.code = "IMPORT_VALIDATION";
@@ -278,7 +300,8 @@ export const updateMenuItem = async (req, res) => {
       return res.status(404).json({ message: "Prodotto non trovato" });
     }
 
-    const data = buildMenuItemData(req.body);
+    const mode = await getRestaurantMode(prisma, req.user.restaurantId);
+    const data = removeExternalPosOwnedFields(buildMenuItemData(req.body), mode);
     const nextTrackStock = data.trackStock ?? existingItem.trackStock;
     const nextStock = data.stockQuantity ?? Number(existingItem.stockQuantity);
     if (nextTrackStock && Number(nextStock) <= 0) data.isAvailable = false;
@@ -311,7 +334,10 @@ export const updateMenuItem = async (req, res) => {
     });
 
     emitMenuUpdate(req, item.id, "updated");
-    return res.json({ message: "Prodotto aggiornato", item });
+    return res.json({
+      message: "Prodotto aggiornato",
+      item: mode === RESTAURANT_MODES.INTEGRATED ? operationalMenuItem(item) : item,
+    });
   } catch (error) {
     console.error("updateMenuItem error:", error);
     return res.status(400).json({ message: error.message || "Errore nell'aggiornamento del prodotto" });

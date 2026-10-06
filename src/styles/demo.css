@@ -8,6 +8,7 @@
 .demo-topbar,
 .demo-hero,
 .demo-live-panel,
+.demo-tour,
 .demo-tabs,
 .demo-table-card,
 .demo-menu-card,
@@ -121,7 +122,7 @@
 .demo-hero-actions,
 .demo-choice-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 22px;
 }
@@ -225,7 +226,7 @@
   justify-content: space-between;
   gap: 14px;
   align-items: center;
-  margin-bottom: 14px;
+  margin: 14px 0 0;
   border: 1px solid #bbf7d0;
   border-radius: 24px;
   padding: 16px;
@@ -304,6 +305,187 @@
   background: rgba(255, 255, 255, .9);
   padding: 8px;
   margin-bottom: 14px;
+}
+
+.demo-tour {
+  scroll-margin-top: 12px;
+  margin-bottom: 14px;
+  border-radius: 26px;
+  padding: clamp(17px, 3vw, 26px);
+  background: rgba(255, 255, 255, .96);
+}
+
+.demo-tour-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.demo-tour-topline button {
+  border: 0;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #64748b;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.demo-tour-progress {
+  height: 5px;
+  margin: 12px 0 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.demo-tour-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0f766e, #2563eb);
+  transition: width .24s ease;
+}
+
+.demo-tour-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(92px, 1fr));
+  gap: 8px;
+}
+
+.demo-tour-steps button {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 9px;
+  background: #f8fafc;
+  color: #64748b;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.demo-tour-steps button i {
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #e2e8f0;
+  color: #475569;
+  font-style: normal;
+  font-size: 11px;
+}
+
+.demo-tour-steps button.is-active {
+  border-color: #60a5fa;
+  background: #eff6ff;
+  color: #12345c;
+}
+
+.demo-tour-steps button.is-active i { background: #2563eb; color: white; }
+.demo-tour-steps button.is-done { border-color: #a7f3d0; color: #166534; }
+.demo-tour-steps button.is-done i { background: #dcfce7; color: #166534; }
+
+.demo-tour-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: end;
+  margin-top: 20px;
+}
+
+.demo-tour-content > div:first-child > span,
+.demo-results > header > span {
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.demo-tour-content h2,
+.demo-results h2 {
+  margin: 5px 0 7px;
+  font-size: clamp(24px, 4vw, 36px);
+  line-height: 1.05;
+  letter-spacing: -.03em;
+}
+
+.demo-tour-content p,
+.demo-results header p {
+  max-width: 760px;
+  margin: 0;
+  color: #64748b;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.demo-tour-navigation {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.demo-tour-navigation button,
+.demo-tour-navigation a {
+  min-height: 43px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dbe4ee;
+  border-radius: 13px;
+  padding: 9px 13px;
+  background: white;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 950;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.demo-tour-navigation button:disabled { opacity: .42; }
+.demo-tour-navigation .is-primary { border-color: #0f172a; background: #0f172a; color: white; }
+
+.demo-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  border: 1px solid #86efac;
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.demo-notice > span {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #16a34a;
+  color: white;
 }
 
 .demo-tabs button {
@@ -431,6 +613,11 @@
   background: white;
 }
 
+.demo-cart-panel {
+  position: sticky;
+  top: 14px;
+}
+
 .demo-side-panel.dark {
   background: #07111f;
   color: white;
@@ -511,6 +698,30 @@
   font-weight: 800;
 }
 
+.demo-owner-card strong.is-product {
+  font-size: clamp(25px, 4vw, 40px);
+  line-height: 1.03;
+}
+
+.demo-results {
+  display: grid;
+  gap: 16px;
+}
+
+.demo-results > header {
+  border: 1px solid #c7d2fe;
+  border-radius: 24px;
+  padding: clamp(20px, 4vw, 30px);
+  background: linear-gradient(135deg, #eef2ff, #f0fdfa);
+}
+
+.demo-table-card.is-highlighted,
+.demo-order-card.is-highlighted,
+.demo-cash-row.is-highlighted {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, .14), 0 18px 44px rgba(15, 23, 42, .10);
+}
+
 .demo-orders-grid {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
@@ -584,6 +795,10 @@
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .demo-tour-content { grid-template-columns: 1fr; }
+  .demo-tour-navigation { justify-content: flex-start; }
+  .demo-cart-panel { position: static; }
 }
 
 @media (max-width: 620px) {
@@ -592,11 +807,24 @@
   .demo-owner-grid {
     grid-template-columns: 1fr;
   }
+
+  .demo-tour-steps {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 5px;
+    scroll-snap-type: x proximity;
+  }
+
+  .demo-tour-steps button {
+    flex: 0 0 118px;
+    scroll-snap-align: start;
+  }
 }
 
 @media (max-width: 560px) {
   .demo-topbar,
   .demo-actions,
+  .demo-tour-topline,
   .demo-order-head,
   .demo-cash-row {
     align-items: stretch;
@@ -611,4 +839,18 @@
     width: 100%;
     height: 150px;
   }
+
+  .demo-tour-navigation {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .demo-tour-navigation a { white-space: normal; text-align: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-tour-progress i,
+  .demo-hero-actions a,
+  .demo-hero-actions button,
+  .demo-tabs button { transition: none; }
 }

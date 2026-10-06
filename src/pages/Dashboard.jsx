@@ -206,6 +206,7 @@ function Dashboard() {
   const live = data?.live || {};
   const charts = data?.charts || {};
   const alerts = data?.alerts || {};
+  const integratedMode = data?.operationMode === "integrated";
   const supportAccess = data?.supportAccess || null;
   const supportAccessAge = supportAccess?.createdAt && data?._loadedAt
     ? data._loadedAt - new Date(supportAccess.createdAt).getTime()
@@ -226,9 +227,9 @@ function Dashboard() {
     { label: "Menu inserito", done: Boolean(setupChecks.menu) },
     { label: "QR generati", done: Boolean(setupChecks.qr) },
     { label: "Cucina pronta", done: Boolean(setupChecks.menu) },
-    { label: "Cassa pronta", done: Boolean(setupChecks.tables) },
+    { label: integratedMode ? "Gestionale scelto" : "Cassa pronta", done: integratedMode || Boolean(setupChecks.tables) },
     { label: "Abbonamento attivo", done: Boolean(setupChecks.billing) },
-  ], [setupChecks.billing, setupChecks.menu, setupChecks.profile, setupChecks.qr, setupChecks.tables]);
+  ], [integratedMode, setupChecks.billing, setupChecks.menu, setupChecks.profile, setupChecks.qr, setupChecks.tables]);
   const readinessProgress = setupStatus?.progress ?? Math.round((readinessItems.filter((item) => item.done).length / readinessItems.length) * 100);
 
   if (!restaurantName) {
@@ -272,6 +273,13 @@ function Dashboard() {
           onRefresh={() => load(true)}
         />
 
+        {integratedMode ? (
+          <section className="ordy-mode-banner">
+            <div><span>Modalità con gestionale</span><strong>Qui vedi solo ciò che serve al servizio</strong></div>
+            <p>Ordynora misura tavoli, comande e tempi. Incassi, margini, documenti fiscali e chiusura restano nel gestionale collegato.</p>
+          </section>
+        ) : null}
+
         {showSupportAccess ? (
           <SupportAccessNotice
             access={supportAccess}
@@ -308,7 +316,9 @@ function Dashboard() {
           <nav>
             <Link to="/tavoli"><b>Sala</b><small>Tavoli, prenotazioni e portate</small></Link>
             <Link to="/cucina"><b>Cucina</b><small>Comande e tempi</small></Link>
-            <Link to="/cassa"><b>Cassa</b><small>Conti e pagamenti</small></Link>
+            {integratedMode
+              ? <Link to="/integrazioni"><b>Gestionale</b><small>Connessione e responsabilità</small></Link>
+              : <Link to="/cassa"><b>Cassa</b><small>Conti e pagamenti</small></Link>}
             <Link to="/admin?tab=menu"><b>Menu</b><small>Piatti, prezzi e disponibilità</small></Link>
           </nav>
         </section>
@@ -328,23 +338,23 @@ function Dashboard() {
           <Link to="/errori" className={alertCount ? "dash-service-card is-warning" : "dash-service-card is-calm"}>
             <span>Controllo</span>
             <b>{alertCount ? `${alertCount} alert` : "Tutto regolare"}</b>
-            <small>Verifica pagamenti, errori e avvisi.</small>
+            <small>{integratedMode ? "Verifica errori e avvisi operativi." : "Verifica pagamenti, errori e avvisi."}</small>
           </Link>
           <Link to="/statistiche" className="dash-service-card is-report">
             <span>Statistiche</span>
             <b>Report e consigli</b>
-            <small>Apri numeri, prodotti top e consulente Ordynora.</small>
+            <small>{integratedMode ? "Apri tempi, volumi e prodotti più richiesti." : "Apri numeri, prodotti top e consulente Ordynora."}</small>
           </Link>
           <Link to="/storico" className="dash-service-card is-report">
             <span>Storico</span>
             <b>Ordini chiusi</b>
-            <small>Rivedi conti, pagamenti e comande concluse.</small>
+            <small>{integratedMode ? "Rivedi comande e servizi conclusi." : "Rivedi conti, pagamenti e comande concluse."}</small>
           </Link>
         </section>
 
         <section className="dash-main-grid dash-main-grid--focus">
           <div>
-            <DashboardLiveOrders orders={live.activeOrders || []} />
+            <DashboardLiveOrders orders={live.activeOrders || []} showMoney={!integratedMode} />
           </div>
 
           <aside className="dash-side-stack">
@@ -384,7 +394,7 @@ function Dashboard() {
               </div>
 
               <aside className="dash-side-stack">
-                <DashboardAlerts alerts={alerts} />
+                <DashboardAlerts alerts={alerts} integratedMode={integratedMode} />
               </aside>
             </section>
           </>

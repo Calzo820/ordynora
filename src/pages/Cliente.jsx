@@ -252,6 +252,7 @@ export default function Cliente() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const pendingSubmission = useRef({ fingerprint: "", requestId: "" });
+  const integratedMode = (order?.operationMode || restaurant?.operationMode) === "integrated";
 
   useEffect(() => {
     const applySyncedOrder = (queueId, result) => {
@@ -373,7 +374,7 @@ export default function Cliente() {
       try {
         const [data, summary] = await Promise.all([
           publicApiGet(`/orders/public/${encodeURIComponent(token)}`),
-          TABLE_PAYMENT_AVAILABLE && !isDemo
+          TABLE_PAYMENT_AVAILABLE && !isDemo && !integratedMode
             ? publicApiGet(`/payments/public/${encodeURIComponent(token)}/summary`).catch(() => null)
             : Promise.resolve(null),
         ]);
@@ -401,7 +402,7 @@ export default function Cliente() {
       active = false;
       clearInterval(timer);
     };
-  }, [isDemo, order?.id, order?.publicToken, slug, tableToken]);
+  }, [integratedMode, isDemo, order?.id, order?.publicToken, slug, tableToken]);
 
   useEffect(() => {
     if (TABLE_PAYMENT_AVAILABLE && paymentResult === "success") {
@@ -682,20 +683,25 @@ export default function Cliente() {
             <strong>{money(order.totalAmount)}</strong>
           </div>
 
-          {order.paymentStatus === "paid" || payment.summary?.paymentStatus === "paid" ? (
+          {!integratedMode && (order.paymentStatus === "paid" || payment.summary?.paymentStatus === "paid") ? (
             <div className="cm-payment-paid"><b>Conto pagato</b><span>Il pagamento è stato registrato correttamente.</span></div>
           ) : null}
 
           {payment.error ? <div className="cm-error">{payment.error}</div> : null}
           {serviceMessage ? <div className="cm-service-message">{serviceMessage}</div> : null}
-          {order.paymentStatus !== "paid" && payment.summary?.paymentStatus !== "paid" ? (
+          {integratedMode ? (
+            <div className="cm-payment-waiting">
+              <b>Conto gestito dal ristorante</b>
+              <span>Premi “Chiedi conto”. Pagamento e documento fiscale verranno gestiti dal personale con il sistema di cassa del locale.</span>
+            </div>
+          ) : order.paymentStatus !== "paid" && payment.summary?.paymentStatus !== "paid" ? (
             <div className="cm-payment-waiting">
               <b>Pagamento dal tavolo</b>
               <span>Prossimamente potrai pagare in sicurezza direttamente dal telefono. Per ora usa “Chiedi conto”.</span>
             </div>
           ) : null}
 
-          {TABLE_PAYMENT_AVAILABLE && payment.open && payment.summary?.onlinePaymentAvailable && order.paymentStatus !== "paid" && payment.summary?.paymentStatus !== "paid" ? (
+          {!integratedMode && TABLE_PAYMENT_AVAILABLE && payment.open && payment.summary?.onlinePaymentAvailable && order.paymentStatus !== "paid" && payment.summary?.paymentStatus !== "paid" ? (
             <section className="cm-payment-panel">
               <div className="cm-payment-summary">
                 <div><span>Totale</span><b>{money(payment.summary?.totalAmount ?? order.totalAmount)}</b></div>
@@ -751,7 +757,7 @@ export default function Cliente() {
             <button type="button" className="secondary" onClick={() => requestService("bill")}>
               Chiedi conto
             </button>
-            {order.paymentStatus !== "paid" && payment.summary?.paymentStatus !== "paid" ? (
+            {!integratedMode && order.paymentStatus !== "paid" && payment.summary?.paymentStatus !== "paid" ? (
               <button type="button" className="cm-coming-soon-button" disabled>
                 Pagamento dal tavolo · Prossimamente
               </button>

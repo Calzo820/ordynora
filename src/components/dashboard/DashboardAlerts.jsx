@@ -8,7 +8,7 @@ function timeAgo(value) {
   return `${Math.round(min / 60)} h fa`;
 }
 
-export default function DashboardAlerts({ alerts = {} }) {
+export default function DashboardAlerts({ alerts = {}, integratedMode = false }) {
   const items = [
     ...(alerts.subscriptionAlerts || []).map((s) => ({ id: `s-${s.id}`, tone: "danger", title: `Abbonamento ${s.status}`, text: `Controlla pagamento e portale abbonamento${s.currentPeriodEnd ? ` - scadenza ${new Date(s.currentPeriodEnd).toLocaleDateString("it-IT")}` : ""}` })),
     ...(alerts.paymentAlerts || []).map((p) => ({ id: `p-${p.id}`, tone: "danger", title: `Pagamento ${p.status}`, text: `${p.table || "Tavolo"} - ${timeAgo(p.createdAt)}` })),
@@ -37,7 +37,7 @@ export default function DashboardAlerts({ alerts = {} }) {
           ))}
         </div>
       ) : (
-        <DashboardEmptyState title="Nessun problema" text="Pagamenti, menu e sistema sono sotto controllo." />
+        <DashboardEmptyState title="Nessun problema" text={integratedMode ? "Menu e flusso operativo sono sotto controllo." : "Pagamenti, menu e sistema sono sotto controllo."} />
       )}
     </section>
   );

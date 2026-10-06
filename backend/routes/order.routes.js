@@ -3,6 +3,7 @@ import {
   addOrderExtra,
   addOrderPayment,
   closeOrder,
+  closeOrderOperationally,
   createPublicOrder,
   getOrders,
   getServiceOrders,
@@ -20,6 +21,8 @@ import {
 import { denyImpersonatedPrivateData, requireAuth, requireRole } from "../middleware/auth.middleware.js";
 import { requireActiveSubscription } from "../middleware/billing.middleware.js";
 import { validateExtraPayload, validateOrderStatusPayload, validatePublicOrderPayload } from "../middleware/validate.js";
+import prisma from "../lib/prisma.js";
+import { requireFullRestaurantMode } from "../lib/restaurantMode.js";
 
 const router = express.Router();
 
@@ -66,6 +69,7 @@ router.post(
   denyImpersonatedPrivateData,
   requireActiveSubscription,
   requireRole(["owner", "admin", "cashier"]),
+  requireFullRestaurantMode(prisma, "La registrazione dei pagamenti"),
   addOrderPayment
 );
 
@@ -75,6 +79,7 @@ router.patch(
   denyImpersonatedPrivateData,
   requireActiveSubscription,
   requireRole(["owner", "admin", "cashier"]),
+  requireFullRestaurantMode(prisma, "La configurazione del conto"),
   updateOrderBillSettings
 );
 
@@ -93,7 +98,17 @@ router.post(
   denyImpersonatedPrivateData,
   requireActiveSubscription,
   requireRole(["owner", "admin", "cashier"]),
+  requireFullRestaurantMode(prisma, "La chiusura con pagamento Ordynora"),
   closeOrder
+);
+
+router.post(
+  "/:id/complete-service",
+  requireAuth,
+  denyImpersonatedPrivateData,
+  requireActiveSubscription,
+  requireRole(["owner", "admin", "cashier", "waiter"]),
+  closeOrderOperationally
 );
 
 router.post(

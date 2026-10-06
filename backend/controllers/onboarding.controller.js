@@ -56,7 +56,7 @@ async function buildStatus(restaurantId) {
   };
   const completedCount = Object.values(checks).filter(Boolean).length;
   return {
-    restaurant: restaurant ? { id: restaurant.id, name: restaurant.name, slug: restaurant.slug, primaryColor: restaurant.primaryColor, logoUrl: restaurant.logoUrl || "", currency: restaurant.currency, settingsJson: restaurant.settingsJson, isActive: restaurant.isActive, subscriptionStatus } : null,
+    restaurant: restaurant ? { id: restaurant.id, name: restaurant.name, slug: restaurant.slug, primaryColor: restaurant.primaryColor, logoUrl: restaurant.logoUrl || "", currency: restaurant.currency, operationMode: restaurant.operationMode || "full", settingsJson: restaurant.settingsJson, isActive: restaurant.isActive, subscriptionStatus } : null,
     counts: { tables: tablesCount, activeTables: activeTablesCount, menuItems: menuCount, staff: staffCount },
     checks,
     progress: Math.round((completedCount / Object.keys(checks).length) * 100),

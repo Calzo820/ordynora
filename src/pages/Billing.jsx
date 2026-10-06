@@ -209,6 +209,7 @@ export default function Billing() {
   const missingPlans = planOrder.filter((id) => data && !configuredPlans[id]);
   const billingWarning = data && (!data.billingConfigured || missingPlans.length > 0);
   const paymentProblem = ["past_due", "unpaid", "incomplete"].includes(status);
+  const integratedMode = data?.restaurant?.operationMode === "integrated";
 
   return (
     <div style={glowPageStyle}>
@@ -225,7 +226,9 @@ export default function Billing() {
                 Un solo prodotto. Scegli solo la durata.
               </h1>
               <p style={{ color: "rgba(255,255,255,0.78)", lineHeight: 1.65, maxWidth: 740, margin: "16px 0 0", fontWeight: 750 }}>
-                Tutti i piani includono le stesse funzioni: QR, ordini live, cucina, bar, cassa, tavoli e supporto. Prezzi + IVA, rinnovo automatico e disdetta quando vuoi.
+                {integratedMode
+                  ? "Il piano include QR, ordini live, cucina, bar, tavoli, integrazione e supporto. Cassa e fiscalità restano nel gestionale che usi già."
+                  : "Tutti i piani includono le stesse funzioni: QR, ordini live, cucina, bar, cassa, tavoli e supporto. Prezzi + IVA, rinnovo automatico e disdetta quando vuoi."}
               </p>
             </div>
           </section>
@@ -263,7 +266,12 @@ export default function Billing() {
             </div>
           </section>
 
-          <section className="billing-connect-card" style={connectCardStyle}>
+          {integratedMode ? (
+            <section className="ordy-mode-banner">
+              <div><span>Configurazione attuale</span><strong>Ordynora operativa + gestionale esterno</strong></div>
+              <p>Questo abbonamento non attiva una seconda cassa: pagamenti, scontrini e fatture restano nel gestionale collegato.</p>
+            </section>
+          ) : <section className="billing-connect-card" style={connectCardStyle}>
             <div style={connectCopyStyle}>
               <div style={connectEyebrowStyle}>Disponibile presto</div>
               <h2 style={{ margin: "7px 0 8px", color: "#0f172a", fontSize: 26 }}>Pagamenti dal tavolo</h2>
@@ -283,7 +291,7 @@ export default function Billing() {
                 Segnalami interesse
               </a>
             </div>
-          </section>
+          </section>}
 
           <section className="billing-plans-grid" style={plansGridStyle}>
             {planOrder.map((id) => (

@@ -102,7 +102,10 @@ export default function Statistiche() {
   const maxRevenue = Math.max(0, ...byDay.map((row) => number(row.revenue)));
   const maxMargin = Math.max(0, ...topProducts.map((row) => number(row.margin)));
   const maxPayment = Math.max(0, ...byPayment.map((row) => number(row.revenue)));
+  const maxOrders = Math.max(0, ...byDay.map((row) => number(row.orders)));
+  const maxQuantity = Math.max(0, ...topProducts.map((row) => number(row.quantity)));
   const hasData = number(kpis.ordersRange) > 0;
+  const integratedMode = summary?.operationMode === "integrated";
   return (
     <div style={glowPageStyle}>
       <Navbar />
@@ -111,8 +114,8 @@ export default function Statistiche() {
           <header className="management-hero-main report-hero-clean">
             <div>
               <div className="management-kicker">Dati reali del locale</div>
-              <h1 className="management-hero-title">Numeri utili, senza report inutili</h1>
-              <p className="management-hero-subtitle">Incasso, margine, tempi e prodotti calcolati sui conti registrati in Ordynora.</p>
+              <h1 className="management-hero-title">{integratedMode ? "Tempi e flusso, senza doppia contabilità" : "Numeri utili, senza report inutili"}</h1>
+              <p className="management-hero-subtitle">{integratedMode ? "Volumi, tempi cucina/bar e prodotti richiesti. I dati economici restano nel gestionale collegato." : "Incasso, margine, tempi e prodotti calcolati sui conti registrati in Ordynora."}</p>
             </div>
             <div className="report-period-switch" aria-label="Periodo statistiche">
               {[7, 30, 90].map((days) => (
@@ -128,7 +131,14 @@ export default function Statistiche() {
 
           {!loading && summary ? (
             <>
-              <section className="management-card">
+              {integratedMode ? (
+                <section className="ordy-mode-banner">
+                  <div><span>Report operativo</span><strong>Nessuna cifra duplicata</strong></div>
+                  <p>Ordynora mostra performance del servizio; incassi, IVA, margini e metodi di pagamento vanno consultati nel gestionale.</p>
+                </section>
+              ) : null}
+
+              {!integratedMode ? <section className="management-card">
                 <div className="management-section-head">
                   <div><h2 className="management-title">Andamento economico</h2><p className="management-subtitle">Confronto con i {period} giorni precedenti.</p></div>
                 </div>
@@ -138,13 +148,13 @@ export default function Statistiche() {
                   <Stat label="Margine lordo" value={money(kpis.grossMarginRange)} detail={`Food cost ${money(kpis.foodCostRange)}`} change={kpis.comparison?.margin} />
                   <Stat label="Margine %" value={`${number(kpis.marginRateRange).toFixed(1)}%`} detail="Stima da costi inseriti nel menu" />
                 </div>
-              </section>
+              </section> : null}
 
               {!hasData ? (
                 <section className="management-card report-empty-clean">
                   <span>Nessun conto nel periodo</span>
-                  <h2>I numeri appariranno dopo il primo pagamento.</h2>
-                  <p>Ordynora non inserisce dati finti. Costi e scorte del menu restano comunque disponibili per preparare il servizio.</p>
+                  <h2>{integratedMode ? "I tempi appariranno dopo il primo servizio." : "I numeri appariranno dopo il primo pagamento."}</h2>
+                  <p>{integratedMode ? "Ordynora non replica i dati del gestionale. Qui compariranno solo comande, tempi e quantità reali." : "Ordynora non inserisce dati finti. Costi e scorte del menu restano comunque disponibili per preparare il servizio."}</p>
                 </section>
               ) : (
                 <>
@@ -163,7 +173,18 @@ export default function Statistiche() {
                     </article>
                   </section>
 
-                  <section className="report-simple-grid">
+                  {integratedMode ? (
+                    <section className="report-simple-grid">
+                      <article className="management-card report-bar">
+                        <div className="management-section-head"><div><h2 className="management-title">Comande per giorno</h2><p className="management-subtitle">Volumi operativi degli ultimi 14 giorni.</p></div></div>
+                        {byDay.map((day) => <BarRow key={day.date} label={new Date(`${day.date}T12:00:00`).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" })} value={day.orders} max={maxOrders} valueLabel={`${day.orders} ordini`} detail={`${day.completed || 0} completati`} />)}
+                      </article>
+                      <article className="management-card report-bar">
+                        <div className="management-section-head"><div><h2 className="management-title">Prodotti più richiesti</h2><p className="management-subtitle">Quantità passate da cucina e bar.</p></div></div>
+                        {topProducts.slice(0, 8).map((item) => <BarRow key={item.id} label={item.name} value={item.quantity} max={maxQuantity} valueLabel={`${item.quantity} pz`} detail={item.category} />)}
+                      </article>
+                    </section>
+                  ) : <section className="report-simple-grid">
                     <article className="management-card report-bar">
                       <div className="management-section-head"><div><h2 className="management-title">Incasso giornaliero</h2><p className="management-subtitle">Ultimi 14 giorni con movimento.</p></div></div>
                       {byDay.map((day) => <BarRow key={day.date} label={new Date(`${day.date}T12:00:00`).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" })} value={day.revenue} max={maxRevenue} valueLabel={money(day.revenue)} />)}
@@ -176,7 +197,7 @@ export default function Statistiche() {
                       <div className="management-section-head"><div><h2 className="management-title">Pagamenti</h2><p className="management-subtitle">Importi registrati per metodo.</p></div></div>
                       {byPayment.map((item) => <BarRow key={item.method} label={paymentLabel(item.method)} value={item.revenue} max={maxPayment} valueLabel={money(item.revenue)} detail={`${item.orders} registrazioni`} />)}
                     </article>
-                  </section>
+                  </section>}
                 </>
               )}
 

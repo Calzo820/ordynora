@@ -23,7 +23,7 @@ function orderStatusMeta(status) {
   return { tone: "pending", label: "Nuovo ordine" };
 }
 
-export default function DashboardLiveOrders({ orders = [] }) {
+export default function DashboardLiveOrders({ orders = [], showMoney = true }) {
   return (
     <section className="dash-panel dash-live-orders">
       <div className="dash-panel-head">
@@ -46,7 +46,7 @@ export default function DashboardLiveOrders({ orders = [] }) {
                   <b>{order.itemsCount || 0} articoli</b>
                   <small className={`dash-order-status dash-order-status--${status.tone}`}>{status.label}</small>
                 </div>
-                <div className="dash-order-total">{euro(order.totalAmount)}</div>
+                {showMoney ? <div className="dash-order-total">{euro(order.totalAmount)}</div> : null}
               </article>
             );
           })}

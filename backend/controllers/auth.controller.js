@@ -94,6 +94,7 @@ function sanitizeRestaurant(restaurant) {
     currency: restaurant.currency,
     isActive: restaurant.isActive,
     plan: restaurant.plan,
+    operationMode: restaurant.operationMode || "full",
   };
 }
 
