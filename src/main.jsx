@@ -21,6 +21,7 @@ import "./styles/service-flow-v5.css";
 import "./styles/intuition-v6.css";
 import "./styles/service-recovery-v7.css";
 import "./styles/restaurant-modes.css";
+import "./styles/landing-mobile-v11.css";
 
 initPwaInstall();
 

@@ -3,6 +3,7 @@ import prisma from "../lib/prisma.js";
 import { RESTAURANT_MODES } from "../lib/restaurantMode.js";
 import { safeEmit } from "../lib/socketSafe.js";
 import { getTenantCached } from "../lib/tenantCache.js";
+import { buildTableSessionOrder } from "../lib/tableSessionOrder.js";
 
 function emitTableUpdate(req, table, reason) {
   safeEmit(
@@ -184,7 +185,12 @@ export const getTablesStatus = async (req, res) => {
 
     const mapped = tables.map((table) => {
       const activeSession = table.sessions[0] || null;
-      const activeOrder = table.orders[0] || null;
+      const sessionOrders = activeSession
+        ? table.orders.filter((order) => order.tableSessionId === activeSession.id)
+        : table.orders;
+      const activeOrder = activeSession && sessionOrders.length
+        ? buildTableSessionOrder({ ...activeSession, table, orders: sessionOrders }, { externalIdentity: false })
+        : table.orders[0] || null;
       const totalAmount = activeOrderTotal(activeOrder);
       return {
         id: table.id,
@@ -196,7 +202,7 @@ export const getTablesStatus = async (req, res) => {
         sortOrder: table.sortOrder,
         isActive: table.isActive,
         status: mapOrderStatusToCashierStatus(activeOrder, activeSession),
-        activeSession: activeSession ? { id: activeSession.id, status: activeSession.status, openedAt: activeSession.openedAt, guestName: activeSession.guestName, notes: activeSession.notes, ...(integrated ? {} : { totalAmount: activeSession.totalAmount }) } : null,
+        activeSession: activeSession ? { id: activeSession.id, status: activeSession.status, openedAt: activeSession.openedAt, guestName: activeSession.guestName, notes: activeSession.notes, orderCount: activeOrder?.orderCount || sessionOrders.length, ...(integrated ? {} : { totalAmount }) } : null,
         activeOrder: activeOrder ? {
           id: activeOrder.id,
           publicToken: activeOrder.publicToken,
@@ -210,6 +216,8 @@ export const getTablesStatus = async (req, res) => {
           servedAt: activeOrder.servedAt,
           closedAt: activeOrder.closedAt,
           tableSessionId: activeOrder.tableSessionId,
+          orderCount: activeOrder.orderCount || 1,
+          sessionOrderIds: activeOrder.sessionOrderIds || [activeOrder.id],
           ...(integrated ? {} : {
             paymentStatus: activeOrder.paymentStatus,
             paymentMethod: activeOrder.paymentMethod,

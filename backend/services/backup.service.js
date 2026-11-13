@@ -38,6 +38,9 @@ async function collectBackupData() {
     auditLogs,
     stockMovements,
     printJobs,
+    posIntegrations,
+    posIntegrationMappings,
+    posIntegrationJobs,
   ] = await Promise.all([
     prisma.restaurant.findMany(),
     prisma.user.findMany(),
@@ -57,6 +60,9 @@ async function collectBackupData() {
     prisma.auditLog.findMany(),
     prisma.stockMovement.findMany(),
     prisma.printJob.findMany(),
+    prisma.posIntegration.findMany(),
+    prisma.posIntegrationMapping.findMany(),
+    prisma.posIntegrationJob.findMany(),
   ]);
 
   return {
@@ -82,6 +88,9 @@ async function collectBackupData() {
       auditLogs,
       stockMovements,
       printJobs,
+      posIntegrations,
+      posIntegrationMappings,
+      posIntegrationJobs,
     },
   };
 }

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import LocaleSwitcher from "../components/LocaleSwitcher";
 import { useTranslatedContent } from "../hooks/useTranslatedContent";
@@ -11,7 +11,7 @@ const WHATSAPP_NUMBER = "393240467723";
 
 const translations = {
   it: {
-    nav: { demo: "Demo", privacy: "Privacy", login: "Login", contact: "Parla con noi" },
+    nav: { demo: "Demo", privacy: "Privacy", login: "Login", contact: "Parla con noi", menu: "Menu" },
     eyebrow: "Menu QR e servizio, con o senza gestionale",
     title: "Ordynora per ristoranti",
     promise: "Riduci gli errori di sala e tieni il servizio più sotto controllo.",
@@ -70,7 +70,7 @@ const translations = {
     emailBody: "Ciao, vorrei richiedere la demo gratuita Ordynora per il mio ristorante. Potete ricontattarmi?",
   },
   en: {
-    nav: { demo: "Demo", privacy: "Privacy", login: "Login", contact: "Talk to us" },
+    nav: { demo: "Demo", privacy: "Privacy", login: "Login", contact: "Talk to us", menu: "Menu" },
     eyebrow: "QR menu and service, with or without an existing POS",
     title: "Ordynora for restaurants",
     promise: "Reduce service errors and keep every shift under control.",
@@ -116,7 +116,7 @@ const translations = {
     emailSubject: "Ordynora free demo request", emailBody: "Hello, I would like to request the free Ordynora demo for my restaurant. Could you contact me?",
   },
   de: {
-    nav: { demo: "Demo", privacy: "Datenschutz", login: "Login", contact: "Kontakt" },
+    nav: { demo: "Demo", privacy: "Datenschutz", login: "Login", contact: "Kontakt", menu: "Menü" },
     eyebrow: "QR-Menü, Service, Küche und Kasse in einem Ablauf",
     title: "Ordynora für Restaurants",
     promise: "Weniger Servicefehler und mehr Kontrolle über jede Schicht.",
@@ -137,7 +137,7 @@ const translations = {
     whatsappMessage: "Hallo, ich möchte die kostenlose Ordynora-Demo für mein Restaurant anfragen.", planMessage: "Hallo, ich möchte Informationen zum Ordynora-Tarif", emailSubject: "Anfrage kostenlose Ordynora-Demo", emailBody: "Hallo, ich möchte die kostenlose Ordynora-Demo für mein Restaurant anfragen. Können Sie mich kontaktieren?",
   },
   es: {
-    nav: { demo: "Demo", privacy: "Privacidad", login: "Acceso", contact: "Hablemos" },
+    nav: { demo: "Demo", privacy: "Privacidad", login: "Acceso", contact: "Hablemos", menu: "Menú" },
     eyebrow: "Menú QR, sala, cocina y caja en un solo flujo", title: "Ordynora para restaurantes", promise: "Reduce los errores de sala y mantén cada servicio bajo control.",
     lead: "Desde el QR del cliente hasta el pedido y la cuenta: cada paso permanece claro, actualizado y conectado durante el servicio.", requestDemo: "Solicitar demo gratuita", watchDemo: "Ver demo pública", emailUs: "Enviar email",
     proof: "Demo gratuita solo para los primeros 3 restaurantes, configuración incluida y sin compromiso inicial.", serviceLabel: "Qué incluye Ordynora",
@@ -154,7 +154,7 @@ const translations = {
     whatsappMessage: "Hola, quiero solicitar la demo gratuita de Ordynora para mi restaurante.", planMessage: "Hola, quiero información sobre el plan Ordynora", emailSubject: "Solicitud de demo gratuita Ordynora", emailBody: "Hola, quiero solicitar la demo gratuita de Ordynora para mi restaurante. ¿Podéis contactarme?",
   },
   ru: {
-    nav: { demo: "Демо", privacy: "Конфиденциальность", login: "Войти", contact: "Связаться" },
+    nav: { demo: "Демо", privacy: "Конфиденциальность", login: "Войти", contact: "Связаться", menu: "Меню" },
     eyebrow: "QR-меню, зал, кухня и касса в единой системе", title: "Ordynora для ресторанов", promise: "Меньше ошибок в зале и больше контроля над каждой сменой.",
     lead: "От QR-кода гостя до заказа и счёта: каждый этап остаётся понятным, актуальным и связанным на протяжении обслуживания.", requestDemo: "Запросить бесплатное демо", watchDemo: "Открыть публичное демо", emailUs: "Написать по email",
     proof: "Бесплатное демо только для первых 3 ресторанов, настройка включена, без начальных обязательств.", serviceLabel: "Что входит в Ordynora",
@@ -186,6 +186,7 @@ function Card({ children, className = "" }) {
 
 export default function Landing() {
   const { content: t, isTranslating } = useTranslatedContent("landing", translations);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const demoContactUrl = whatsappUrl(t.whatsappMessage);
   const demoEmailUrl = emailUrl(t.emailSubject, t.emailBody);
 
@@ -198,17 +199,35 @@ export default function Landing() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    function closeOnEscape(event) {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, []);
+
   return (
     <main className="landing-page" aria-busy={isTranslating}>
       <section className="landing-hero" style={{ "--landing-hero-image": `url(${restaurantServiceImage})` }}>
         <nav className="landing-nav">
           <div className="landing-brand"><img src={logoOrdynora} alt="Ordynora" /><span>Ordynora</span></div>
-          <div className="landing-nav-actions">
-            <Link to="/demo">{t.nav.demo}</Link>
-            <Link to="/privacy">{t.nav.privacy}</Link>
-            <Link to="/login">{t.nav.login}</Link>
+          <button
+            className="landing-menu-toggle"
+            type="button"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="landing-navigation"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
+            <span aria-hidden="true"><i /><i /><i /></span>
+            <b>{t.nav.menu}</b>
+          </button>
+          <div id="landing-navigation" className={`landing-nav-actions${mobileMenuOpen ? " is-open" : ""}`}>
+            <Link to="/demo" onClick={() => setMobileMenuOpen(false)}>{t.nav.demo}</Link>
+            <Link to="/privacy" onClick={() => setMobileMenuOpen(false)}>{t.nav.privacy}</Link>
+            <Link to="/login" onClick={() => setMobileMenuOpen(false)}>{t.nav.login}</Link>
             <LocaleSwitcher />
-            <a className="landing-nav-cta" href={demoContactUrl} target="_blank" rel="noreferrer">{t.nav.contact}</a>
+            <a className="landing-nav-cta" href={demoContactUrl} target="_blank" rel="noreferrer" onClick={() => setMobileMenuOpen(false)}>{t.nav.contact}</a>
           </div>
         </nav>
 

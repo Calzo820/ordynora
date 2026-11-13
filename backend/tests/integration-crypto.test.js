@@ -29,11 +29,29 @@ test("tampered integration credentials are rejected", () => {
   process.env.INTEGRATION_ENCRYPTION_KEY = VALID_KEY;
   try {
     const encrypted = encryptIntegrationCredentials({ accessToken: "token" });
-    const tampered = `${encrypted.slice(0, -1)}${encrypted.endsWith("A") ? "B" : "A"}`;
+    const segments = encrypted.split(":");
+    segments[3] = `${segments[3].startsWith("A") ? "B" : "A"}${segments[3].slice(1)}`;
+    const tampered = segments.join(":");
     assert.throws(
       () => decryptIntegrationCredentials(tampered),
       (error) => error instanceof IntegrationEncryptionError && error.code === "INTEGRATION_CREDENTIALS_DECRYPT_FAILED"
     );
+  } finally {
+    if (previous === undefined) delete process.env.INTEGRATION_ENCRYPTION_KEY;
+    else process.env.INTEGRATION_ENCRYPTION_KEY = previous;
+  }
+});
+
+test("non-canonical base64 aliases of an authentication tag are rejected", () => {
+  const previous = process.env.INTEGRATION_ENCRYPTION_KEY;
+  process.env.INTEGRATION_ENCRYPTION_KEY = VALID_KEY;
+  try {
+    const segments = encryptIntegrationCredentials({ accessToken: "token" }).split(":");
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const tag = segments[2];
+    segments[2] = tag.slice(0, -1) + alphabet[alphabet.indexOf(tag.at(-1)) ^ 1];
+    assert.throws(() => decryptIntegrationCredentials(segments.join(":")),
+      (error) => error.code === "INTEGRATION_CREDENTIALS_DECRYPT_FAILED" && error.retryable === false);
   } finally {
     if (previous === undefined) delete process.env.INTEGRATION_ENCRYPTION_KEY;
     else process.env.INTEGRATION_ENCRYPTION_KEY = previous;

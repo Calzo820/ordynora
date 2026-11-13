@@ -6,6 +6,8 @@ const CONNECTION_STATES = Object.freeze({
   assisted: "assisted",
 });
 
+const PUBLIC_PROVIDER_IDS = Object.freeze(["tilby", "teamsystem_cassa_in_cloud"]);
+
 const PROVIDERS = Object.freeze({
   tilby: {
     id: "tilby",
@@ -13,13 +15,13 @@ const PROVIDERS = Object.freeze({
     vendor: "Zucchetti",
     setupMode: "partner",
     badge: "API partner",
-    summary: "Per locali che usano Tilby e vogliono mantenere cassa e parte fiscale nel gestionale.",
+    summary: "Comande aperte e aggiornate durante il servizio; incasso e documento fiscale restano in Tilby.",
     requirements: [
       "Accesso al programma sviluppatori Tilby",
       "Token API associato al punto vendita",
       "Abilitazione o certificazione per l'uso in produzione",
     ],
-    officialDocs: "https://developers.tilby.com/",
+    officialDocs: "https://developer.tilby.com/",
     credentialFields: [
       {
         key: "accessToken",
@@ -50,13 +52,18 @@ const PROVIDERS = Object.freeze({
         placeholder: "Es. Ordynora Milano Centro",
       },
     ],
+    syncStrategy: {
+      title: "Sincronizzazione durante il servizio",
+      description: "Ordynora crea una vendita aperta in Tilby e la aggiorna quando cambia la comanda. Tilby resta responsabile di incasso e fiscalizzazione.",
+      activationNote: "Per la produzione servono l'abilitazione e la certificazione previste dal programma sviluppatori Tilby.",
+    },
     capabilities: {
       connectionTest: CONNECTION_STATES.available,
       menuImport: CONNECTION_STATES.mappingRequired,
       tableSync: CONNECTION_STATES.mappingRequired,
       orderExport: CONNECTION_STATES.mappingRequired,
       fiscalDocuments: CONNECTION_STATES.partnerSetup,
-      webhooks: CONNECTION_STATES.partnerSetup,
+      webhooks: CONNECTION_STATES.planned,
     },
   },
   teamsystem_cassa_in_cloud: {
@@ -65,7 +72,7 @@ const PROVIDERS = Object.freeze({
     vendor: "TeamSystem",
     setupMode: "api_key",
     badge: "API disponibile",
-    summary: "Collega Ordynora a Cassa in Cloud mantenendo nel POS documenti, incassi e chiusure.",
+    summary: "Invia il conto consolidato come ordine esterno; incasso, scontrino e chiusura restano in Cassa in Cloud.",
     requirements: [
       "Licenza Retail Enterprise o Risto Enterprise",
       "API key rilasciata da TeamSystem",
@@ -91,14 +98,33 @@ const PROVIDERS = Object.freeze({
         placeholder: "Es. 12345",
         help: "Puoi aggiungerlo dopo il primo test se gestisci più punti vendita.",
       },
+      {
+        key: "dueMinutes",
+        label: "Preavviso minimo ordine",
+        type: "select",
+        required: true,
+        options: [
+          { value: "5", label: "5 minuti" },
+          { value: "10", label: "10 minuti" },
+          { value: "15", label: "15 minuti (consigliato)" },
+          { value: "30", label: "30 minuti" },
+        ],
+        defaultValue: "15",
+        help: "Deve essere compatibile con tempi, orari e capacità impostati in Cassa in Cloud.",
+      },
     ],
+    syncStrategy: {
+      title: "Invio del conto consolidato",
+      description: "Ordynora invia una sola comanda esterna quando il cliente chiede il conto o il servizio viene completato. I retry riconciliano l'externalId e non duplicano l'ordine.",
+      activationNote: "La data di consegna deve rispettare orari e capacità configurati nel portale TeamSystem.",
+    },
     capabilities: {
       connectionTest: CONNECTION_STATES.available,
       menuImport: CONNECTION_STATES.mappingRequired,
       tableSync: CONNECTION_STATES.mappingRequired,
       orderExport: CONNECTION_STATES.mappingRequired,
-      fiscalDocuments: CONNECTION_STATES.available,
-      webhooks: CONNECTION_STATES.available,
+      fiscalDocuments: CONNECTION_STATES.partnerSetup,
+      webhooks: CONNECTION_STATES.planned,
     },
   },
   passepartout_menu: {
@@ -154,7 +180,7 @@ export function getProviderDefinition(provider) {
 }
 
 export function getPublicProviderCatalog() {
-  return PROVIDER_IDS.map((provider) => {
+  return PUBLIC_PROVIDER_IDS.map((provider) => {
     const definition = PROVIDERS[provider];
     return {
       id: definition.id,
@@ -171,6 +197,7 @@ export function getPublicProviderCatalog() {
         options: field.options?.map((option) => ({ ...option })),
       })),
       capabilities: { ...definition.capabilities },
+      syncStrategy: definition.syncStrategy ? { ...definition.syncStrategy } : null,
     };
   });
 }

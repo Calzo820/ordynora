@@ -5,10 +5,18 @@ import { calculateBill, clampGuestCount, moneyNumber } from "../lib/billing.js";
 import { createOrderPrintJobs, preparationAreas } from "../lib/printJobs.js";
 import { safeEmit } from "../lib/socketSafe.js";
 import { invalidateTenantCache } from "../lib/tenantCache.js";
+import { buildTableSessionOrder, tableSessionOrderIds } from "../lib/tableSessionOrder.js";
+import { getOrOpenTableSession, lockRestaurantTable, TableSessionConflict } from "../lib/tableSessionLock.js";
 import {
   RESTAURANT_MODES,
   getRestaurantMode,
 } from "../lib/restaurantMode.js";
+import {
+  assertOrderCanBeCancelled,
+  assertOrderContentCanChange,
+  enqueueOrderSync,
+  lockOrderForContentChange,
+} from "../services/integrationQueue.service.js";
 
 function parseNumber(value, fallback = 0) {
   const n = Number(value);
@@ -222,12 +230,43 @@ async function recalcOrderTotal(tx, orderId) {
 
 async function recalcSessionTotal(tx, tableSessionId) {
   if (!tableSessionId) return;
-  const orders = await tx.order.findMany({
-    where: { tableSessionId, status: { not: "cancelled" } },
-    select: { totalAmount: true },
+  const session = await tx.tableSession.findUnique({
+    where: { id: tableSessionId },
+    include: {
+      orders: {
+        where: { status: { not: "cancelled" } },
+        include: { items: true, payments: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
   });
-  const totalAmount = orders.reduce((sum, order) => sum + Math.max(0, parseNumber(order.totalAmount)), 0);
+  if (!session) return;
+  const totalAmount = buildTableSessionOrder(session, { externalIdentity: true }).totalAmount;
   await tx.tableSession.update({ where: { id: tableSessionId }, data: { totalAmount } });
+}
+
+async function loadSessionBill(tx, order, { includeClosed = false } = {}) {
+  if (!order?.tableSessionId) return { ...order, sessionOrderIds: [order.id], orderCount: 1 };
+  const session = await tx.tableSession.findUnique({
+    where: { id: order.tableSessionId },
+    include: {
+      restaurant: true,
+      table: true,
+      orders: {
+        where: {
+          status: { not: "cancelled" },
+          ...(includeClosed ? {} : { closedAt: null }),
+        },
+        include: {
+          items: true,
+          payments: { orderBy: { createdAt: "asc" } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+  if (!session) return { ...order, sessionOrderIds: [order.id], orderCount: 1 };
+  return buildTableSessionOrder(session, { preferredOrderId: order.id, externalIdentity: false });
 }
 
 export const createPublicOrder = async (req, res) => {
@@ -339,10 +378,24 @@ export const createPublicOrder = async (req, res) => {
     });
 
     const order = await prisma.$transaction(async (tx) => {
-      let session = await tx.tableSession.findFirst({ where: { restaurantId: table.restaurantId, tableId: table.id, status: "open" }, orderBy: { openedAt: "desc" } });
-      if (!session) {
-        session = await tx.tableSession.create({ data: { restaurantId: table.restaurantId, tableId: table.id, status: "open", guestName: customerName ? String(customerName).slice(0, 100) : null, notes: notes ? String(notes).slice(0, 500) : null } });
+      await lockRestaurantTable(tx, table.restaurantId, table.id, { requireActive: true });
+      const scopedIdempotencyKey = buildIdempotencyKey({
+        restaurantId: table.restaurantId, tableId: table.id, clientRequestId: safeClientRequestId,
+      });
+      finalIdempotencyKey = scopedIdempotencyKey;
+      if (scopedIdempotencyKey) {
+        const existingInTx = await tx.order.findUnique({
+          where: { idempotencyKey: scopedIdempotencyKey },
+          include: { restaurant: true, table: true, items: { include: { menuItem: true } } },
+        });
+        if (existingInTx) return existingInTx;
       }
+      const session = await getOrOpenTableSession(tx, {
+        restaurantId: table.restaurantId,
+        tableId: table.id,
+        guestName: customerName ? String(customerName).slice(0, 100) : null,
+        notes: notes ? String(notes).slice(0, 500) : null,
+      });
       const previousOrder = await tx.order.findFirst({
         where: {
           tableSessionId: session.id,
@@ -359,21 +412,12 @@ export const createPublicOrder = async (req, res) => {
           billConfiguredAt: true,
         },
       });
-      const scopedIdempotencyKey = buildIdempotencyKey({
-        restaurantId: table.restaurantId,
-        tableId: table.id,
-        clientRequestId: safeClientRequestId,
-      });
-      finalIdempotencyKey = scopedIdempotencyKey;
-      if (scopedIdempotencyKey) {
-        const existingInTx = await tx.order.findUnique({
-          where: { idempotencyKey: scopedIdempotencyKey },
-          include: { restaurant: true, table: true, items: { include: { menuItem: true } } },
-        });
-        if (existingInTx) return existingInTx;
-      }
       const orderGuestCount = previousOrder?.guestCount || initialGuestCount;
-      const orderCoverCharge = previousOrder?.coverCharge ?? Math.max(0, moneyNumber(billingDefaults.coverCharge));
+      // Il coperto appartiene al tavolo/sessione: sulle aggiunte successive va
+      // applicato una sola volta, non a ogni invio QR.
+      const orderCoverCharge = previousOrder
+        ? 0
+        : Math.max(0, moneyNumber(billingDefaults.coverCharge));
       const orderCoverChargePerGuest = previousOrder?.coverChargePerGuest ?? billingDefaults.coverChargePerGuest !== false;
       const orderEqualSplitEnabled = previousOrder?.equalSplitEnabled ?? billingDefaults.equalSplitEnabled !== false;
       const orderDiscountPercent = previousOrder?.discountPercent || 0;
@@ -450,6 +494,11 @@ export const createPublicOrder = async (req, res) => {
         }
       }
       await recalcSessionTotal(tx, session.id);
+      await enqueueOrderSync(tx, {
+        restaurantId: table.restaurantId,
+        orderId: created.id,
+        trigger: "created",
+      });
       return created;
     });
 
@@ -462,6 +511,7 @@ export const createPublicOrder = async (req, res) => {
 
     return res.status(201).json({ message: "Ordine creato correttamente", order: publicOrderPayload(order) });
   } catch (error) {
+    if (error instanceof TableSessionConflict) return res.status(409).json({ code: error.code, message: error.message });
     console.error("createPublicOrder error:", error);
     if (error?.code === "INSUFFICIENT_STOCK") {
       return res.status(409).json({ message: error.message });
@@ -681,6 +731,7 @@ export const updateOrderStatus = async (req, res) => {
     const order = await ensureRestaurantAccess(req, id);
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
     if (order === "FORBIDDEN") return res.status(403).json({ message: "Accesso negato" });
+    if (status === "cancelled") await assertOrderCanBeCancelled(order);
     if (req.user?.role === "waiter" && (order.status !== "ready" || status !== "served")) {
       return res.status(403).json({ message: "Il cameriere può solo confermare la consegna di un ordine pronto" });
     }
@@ -762,6 +813,11 @@ export const updateOrderStatus = async (req, res) => {
           entityId: id,
           metadata: { area, from: currentStationStatus, to: status, overall: derivedStatus },
         });
+        await enqueueOrderSync(tx, {
+          restaurantId: order.restaurantId,
+          orderId: id,
+          trigger: "status_changed",
+        });
         return result;
       }
 
@@ -834,6 +890,11 @@ export const updateOrderStatus = async (req, res) => {
         entityId: id,
         metadata: { from: order.status, to: status },
       });
+      await enqueueOrderSync(tx, {
+        restaurantId: order.restaurantId,
+        orderId: id,
+        trigger: status === "cancelled" ? "cancelled" : "status_changed",
+      });
       return result;
     });
 
@@ -861,6 +922,9 @@ export const updateOrderStatus = async (req, res) => {
     return res.json({ message: "Stato ordine aggiornato", order: responseOrder });
   } catch (error) {
     console.error("updateOrderStatus error:", error);
+    if (["EXTERNAL_ORDER_CANCEL_IN_POS", "EXTERNAL_SYNC_IN_PROGRESS"].includes(error?.code)) {
+      return res.status(409).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({ message: "Errore durante aggiornamento stato ordine" });
   }
 };
@@ -979,11 +1043,13 @@ export const addOrderExtra = async (req, res) => {
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
     if (order === "FORBIDDEN") return res.status(403).json({ message: "Accesso negato" });
     if (["served", "cancelled"].includes(order.status)) return res.status(400).json({ message: "Non puoi aggiungere extra a un ordine chiuso" });
+    await assertOrderContentCanChange(order);
     if (billHasStarted(order.payments)) {
       return res.status(409).json({ message: "Il conto non può essere modificato dopo l'inizio di un pagamento" });
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      await lockOrderForContentChange(tx, order);
       const extraItem = await tx.orderItem.create({
         data: {
           orderId: order.id,
@@ -1005,6 +1071,11 @@ export const addOrderExtra = async (req, res) => {
       );
       const updated = await recalcOrderTotal(tx, order.id);
       if (order.tableSessionId) await recalcSessionTotal(tx, order.tableSessionId);
+      await enqueueOrderSync(tx, {
+        restaurantId: order.restaurantId,
+        orderId: order.id,
+        trigger: "extra_added",
+      });
       return { extraItem, updated };
     });
 
@@ -1014,6 +1085,9 @@ export const addOrderExtra = async (req, res) => {
     return res.status(201).json({ message: "Extra aggiunto", item: result.extraItem, order: result.updated });
   } catch (error) {
     console.error("addOrderExtra error:", error);
+    if (error?.code === "EXTERNAL_ORDER_LOCKED") {
+      return res.status(409).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({ message: "Errore durante aggiunta extra" });
   }
 };
@@ -1040,6 +1114,7 @@ export const closeOrder = async (req, res) => {
     }
 
     const outcome = await prisma.$transaction(async (tx) => {
+      await lockRestaurantTable(tx, order.restaurantId, order.tableId);
       const mode = await getRestaurantMode(tx, req.user.restaurantId);
       if (mode === RESTAURANT_MODES.INTEGRATED) {
         const modeError = new Error("La chiusura con pagamento è gestita dal gestionale collegato.");
@@ -1064,10 +1139,10 @@ export const closeOrder = async (req, res) => {
       if (Object.keys(adjustments).length) {
         await tx.order.update({ where: { id }, data: adjustments });
       }
-      let result = await recalcOrderTotal(tx, id);
-      const existingPayments = await tx.paymentTransaction.findMany({
-        where: { orderId: id, status: { in: ["paid", "pending"] } },
-      });
+      await recalcOrderTotal(tx, id);
+      let result = await loadSessionBill(tx, order);
+      const sessionOrderIds = tableSessionOrderIds(result);
+      const existingPayments = (result.payments || []).filter((payment) => ["paid", "pending"].includes(payment.status));
       if (hasActivePendingPayment(existingPayments)) {
         const pendingError = new Error("È presente un pagamento online in corso");
         pendingError.code = "PAYMENT_IN_PROGRESS";
@@ -1110,7 +1185,7 @@ export const closeOrder = async (req, res) => {
       }
 
       const allPayments = await tx.paymentTransaction.findMany({
-        where: { orderId: id, status: "paid" },
+        where: { orderId: { in: sessionOrderIds }, status: "paid" },
         orderBy: { createdAt: "asc" },
       });
       const paidTotal = paidPaymentsTotal(allPayments);
@@ -1118,43 +1193,52 @@ export const closeOrder = async (req, res) => {
       const methods = [...new Set(allPayments.map((payment) => payment.method).filter(Boolean))];
 
       if (paidTotal + 0.009 < total) {
-        result = await tx.order.update({
-          where: { id },
+        await tx.order.updateMany({
+          where: { id: { in: sessionOrderIds } },
           data: {
             paymentStatus: paidTotal > 0 ? "pending" : "unpaid",
             paymentMethod: methods.length === 1 ? methods[0] : methods.length > 1 ? "other" : null,
           },
+        });
+        const current = await tx.order.findUnique({
+          where: { id },
           include: { table: true, items: true, payments: { orderBy: { createdAt: "asc" } } },
         });
+        result = await loadSessionBill(tx, current);
         await writeAudit(tx, req, {
           action: "order.partial_payment",
           entityType: "order",
           entityId: id,
-          metadata: { paidTotal, remaining: total - paidTotal },
+          metadata: { paidTotal, remaining: total - paidTotal, orderIds: sessionOrderIds },
         });
         return { order: result, incomplete: true, paidTotal, remaining: total - paidTotal };
       }
 
-      result = await tx.order.update({
-        where: { id },
+      const closedAt = new Date();
+      await tx.order.updateMany({
+        where: { id: { in: sessionOrderIds } },
         data: {
-          status: order.status === "cancelled" ? "cancelled" : "served",
-          servedAt: order.servedAt || new Date(),
-          closedAt: new Date(),
+          status: "served",
+          servedAt: closedAt,
+          closedAt,
           paymentStatus: "paid",
           paymentMethod: methods.length === 1 ? methods[0] : "other",
           reopenedAt: null,
           reopenedByUserId: null,
           settlementSource: "ordynora",
         },
+      });
+      const closedOrder = await tx.order.findUnique({
+        where: { id },
         include: { table: true, items: true, payments: { orderBy: { createdAt: "asc" } } },
       });
-      if (order.status !== result.status) {
+      result = await loadSessionBill(tx, closedOrder, { includeClosed: true });
+      if (order.status !== "served") {
         await tx.orderStatusHistory.create({
           data: {
             orderId: id,
             fromStatus: order.status,
-            toStatus: result.status,
+            toStatus: "served",
             changedByUserId: req.user?.userId || null,
             changedByRole: req.user?.role || null,
             note: "Conto chiuso",
@@ -1163,21 +1247,16 @@ export const closeOrder = async (req, res) => {
       }
       if (result.tableSessionId) {
         await recalcSessionTotal(tx, result.tableSessionId);
-        const openOrdersCount = await tx.order.count({
-          where: { tableSessionId: result.tableSessionId, closedAt: null, status: { notIn: ["cancelled"] } },
+        await tx.tableSession.update({
+          where: { id: result.tableSessionId },
+          data: { status: "closed", closedAt },
         });
-        if (openOrdersCount === 0) {
-          await tx.tableSession.update({
-            where: { id: result.tableSessionId },
-            data: { status: "closed", closedAt: new Date() },
-          });
-        }
       }
       await writeAudit(tx, req, {
         action: "order.closed",
         entityType: "order",
         entityId: id,
-        metadata: { total, paidTotal, methods },
+        metadata: { total, paidTotal, methods, orderIds: sessionOrderIds },
       });
       return { order: result, incomplete: false, paidTotal, remaining: 0 };
     });
@@ -1246,14 +1325,22 @@ export const closeOrderOperationally = async (req, res) => {
     }
 
     const outcome = await prisma.$transaction(async (tx) => {
+      await lockRestaurantTable(tx, order.restaurantId, order.tableId);
       const modeAtClose = await getRestaurantMode(tx, req.user.restaurantId);
       if (modeAtClose !== RESTAURANT_MODES.INTEGRATED) {
         const modeError = new Error("La modalità del ristorante è cambiata. Usa la Cassa Ordynora.");
         modeError.code = "RESTAURANT_MODE_CHANGED";
         throw modeError;
       }
+      const sessionBill = await loadSessionBill(tx, order);
+      const orderIds = tableSessionOrderIds(sessionBill);
+      if (!orderIds.length || sessionBill.status !== "served") {
+        const error = new Error("Prima consegna tutte le comande aperte di questo tavolo.");
+        error.code = "SESSION_ORDERS_NOT_SERVED";
+        throw error;
+      }
       const internalPayments = await tx.paymentTransaction.count({
-        where: { orderId: id, status: { in: ["paid", "pending"] } },
+        where: { orderId: { in: orderIds }, status: { in: ["paid", "pending"] } },
       });
       if (internalPayments > 0) {
         const error = new Error("Questo conto contiene pagamenti Ordynora e non può essere passato alla cassa esterna.");
@@ -1263,7 +1350,12 @@ export const closeOrderOperationally = async (req, res) => {
 
       const closedAt = new Date();
       const lock = await tx.order.updateMany({
-        where: { id, restaurantId: req.user.restaurantId, closedAt: null, status: "served" },
+        where: {
+          id: { in: orderIds },
+          restaurantId: req.user.restaurantId,
+          closedAt: null,
+          status: "served",
+        },
         data: {
           closedAt,
           settlementSource: "external_pos",
@@ -1273,7 +1365,7 @@ export const closeOrderOperationally = async (req, res) => {
           reopenedByUserId: null,
         },
       });
-      if (lock.count !== 1) {
+      if (lock.count !== orderIds.length) {
         const error = new Error("Il servizio è già stato completato da un altro dispositivo.");
         error.code = "ORDER_ALREADY_CLOSED";
         throw error;
@@ -1285,25 +1377,21 @@ export const closeOrderOperationally = async (req, res) => {
       });
       if (updated?.tableSessionId) {
         await recalcSessionTotal(tx, updated.tableSessionId);
-        const openOrdersCount = await tx.order.count({
-          where: {
-            tableSessionId: updated.tableSessionId,
-            closedAt: null,
-            status: { notIn: ["cancelled"] },
-          },
+        await tx.tableSession.update({
+          where: { id: updated.tableSessionId },
+          data: { status: "closed", closedAt },
         });
-        if (openOrdersCount === 0) {
-          await tx.tableSession.update({
-            where: { id: updated.tableSessionId },
-            data: { status: "closed", closedAt },
-          });
-        }
       }
       await writeAudit(tx, req, {
         action: "order.service_completed_external_pos",
         entityType: "order",
         entityId: id,
-        metadata: { settlementSource: "external_pos" },
+        metadata: { settlementSource: "external_pos", orderIds },
+      });
+      await enqueueOrderSync(tx, {
+        restaurantId: order.restaurantId,
+        orderId: id,
+        trigger: "service_completed",
       });
       return updated;
     });
@@ -1328,8 +1416,9 @@ export const closeOrderOperationally = async (req, res) => {
       order: outcome,
     });
   } catch (error) {
+    if (error instanceof TableSessionConflict) return res.status(409).json({ code: error.code, message: error.message });
     console.error("closeOrderOperationally error:", error);
-    if (["INTERNAL_PAYMENTS_FOUND", "ORDER_ALREADY_CLOSED", "RESTAURANT_MODE_CHANGED"].includes(error?.code)) {
+    if (["INTERNAL_PAYMENTS_FOUND", "ORDER_ALREADY_CLOSED", "RESTAURANT_MODE_CHANGED", "SESSION_ORDERS_NOT_SERVED"].includes(error?.code)) {
       return res.status(409).json({ code: error.code, message: error.message });
     }
     return res.status(500).json({ message: "Errore durante il completamento del servizio" });
@@ -1346,28 +1435,29 @@ export const addOrderPayment = async (req, res) => {
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
     if (order === "FORBIDDEN") return res.status(403).json({ message: "Accesso negato" });
     if (order.closedAt) return res.status(400).json({ message: "Il conto è già chiuso" });
+    const initialBill = await loadSessionBill(prisma, order);
     const paymentKey = requestIdempotencyKey(req, "manual-payment");
     if (paymentKey) {
       const existingAttempt = await prisma.paymentTransaction.findFirst({
         where: { orderId: id, splitKey: { startsWith: `${paymentKey}:` } },
       });
       if (existingAttempt) {
-        const paidTotal = paidPaymentsTotal(order.payments || []);
+        const paidTotal = paidPaymentsTotal(initialBill.payments || []);
         return res.json({
           message: "Pagamento già registrato",
-          order,
+          order: initialBill,
           paidTotal,
-          remaining: Math.max(0, parseNumber(order.totalAmount) - paidTotal),
+          remaining: Math.max(0, parseNumber(initialBill.totalAmount) - paidTotal),
           alreadyProcessed: true,
         });
       }
     }
-    if (hasActivePendingPayment(order.payments || [])) {
+    if (hasActivePendingPayment(initialBill.payments || [])) {
       return res.status(409).json({ message: "È presente un pagamento online in corso" });
     }
-    const existingPaid = paidPaymentsTotal(order.payments || []);
+    const existingPaid = paidPaymentsTotal(initialBill.payments || []);
     const rowsTotal = rows.reduce((sum, row) => sum + row.amount, 0);
-    if (existingPaid + rowsTotal > parseNumber(order.totalAmount) + 0.009) {
+    if (existingPaid + rowsTotal > parseNumber(initialBill.totalAmount) + 0.009) {
       return res.status(400).json({ message: "L'importo inserito supera il saldo del conto" });
     }
 
@@ -1387,16 +1477,16 @@ export const addOrderPayment = async (req, res) => {
         alreadyClosed.code = "ORDER_ALREADY_CLOSED";
         throw alreadyClosed;
       }
-      const paymentsAtLock = await tx.paymentTransaction.findMany({
-        where: { orderId: id, status: { in: ["paid", "pending"] } },
-      });
+      const billAtLock = await loadSessionBill(tx, order);
+      const sessionOrderIds = tableSessionOrderIds(billAtLock);
+      const paymentsAtLock = (billAtLock.payments || []).filter((payment) => ["paid", "pending"].includes(payment.status));
       if (hasActivePendingPayment(paymentsAtLock)) {
         const pendingError = new Error("È presente un pagamento online in corso");
         pendingError.code = "PAYMENT_IN_PROGRESS";
         throw pendingError;
       }
       const paidAtLock = paidPaymentsTotal(paymentsAtLock);
-      if (paidAtLock + rowsTotal > parseNumber(order.totalAmount) + 0.009) {
+      if (paidAtLock + rowsTotal > parseNumber(billAtLock.totalAmount) + 0.009) {
         const overpaymentError = new Error("L'importo inserito supera il saldo del conto");
         overpaymentError.code = "OVERPAYMENT";
         throw overpaymentError;
@@ -1419,21 +1509,25 @@ export const addOrderPayment = async (req, res) => {
         });
       }
       const allPayments = await tx.paymentTransaction.findMany({
-        where: { orderId: id, status: "paid" },
+        where: { orderId: { in: sessionOrderIds }, status: "paid" },
         orderBy: { createdAt: "asc" },
       });
       const paidTotal = paidPaymentsTotal(allPayments);
-      const remaining = Math.max(0, parseNumber(order.totalAmount) - paidTotal);
-      const updated = await tx.order.update({
-        where: { id },
+      const remaining = Math.max(0, parseNumber(billAtLock.totalAmount) - paidTotal);
+      await tx.order.updateMany({
+        where: { id: { in: sessionOrderIds } },
         data: { paymentStatus: remaining <= 0.009 ? "paid" : "pending" },
+      });
+      const updatedRaw = await tx.order.findUnique({
+        where: { id },
         include: { table: true, items: true, payments: { orderBy: { createdAt: "asc" } } },
       });
+      const updated = await loadSessionBill(tx, updatedRaw);
       await writeAudit(tx, req, {
         action: "order.payment_added",
         entityType: "order",
         entityId: id,
-        metadata: { paidTotal, remaining, rows },
+        metadata: { paidTotal, remaining, rows, orderIds: sessionOrderIds },
       });
       return { order: updated, paidTotal, remaining };
     });
@@ -1476,6 +1570,7 @@ export const updateOrderBillSettings = async (req, res) => {
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
     if (order === "FORBIDDEN") return res.status(403).json({ message: "Accesso negato" });
     if (order.closedAt) return res.status(400).json({ message: "Il conto è già chiuso" });
+    await assertOrderContentCanChange(order);
 
     const guestCount = clampGuestCount(req.body?.guestCount);
     const coverCharge = Math.min(100, Math.max(0, moneyNumber(req.body?.coverCharge)));
@@ -1488,10 +1583,13 @@ export const updateOrderBillSettings = async (req, res) => {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         updated = await prisma.$transaction(async (tx) => {
+          await lockOrderForContentChange(tx, order);
           const now = new Date();
+          const sessionBefore = await loadSessionBill(tx, order);
+          const sessionOrderIds = tableSessionOrderIds(sessionBefore);
           await tx.paymentTransaction.updateMany({
             where: {
-              orderId: id,
+              orderId: { in: sessionOrderIds },
               status: "pending",
               OR: [
                 { checkoutExpiresAt: { lt: now } },
@@ -1505,7 +1603,7 @@ export const updateOrderBillSettings = async (req, res) => {
           });
           const activePayments = await tx.paymentTransaction.count({
             where: {
-              orderId: id,
+              orderId: { in: sessionOrderIds },
               OR: [
                 { status: "paid" },
                 {
@@ -1525,6 +1623,16 @@ export const updateOrderBillSettings = async (req, res) => {
             );
           }
 
+          if (sessionOrderIds.length > 1) {
+            await tx.order.updateMany({
+              where: { id: { in: sessionOrderIds.filter((orderId) => orderId !== id) } },
+              data: {
+                coverCharge: 0,
+                discountPercent: 0,
+                discountAmount: 0,
+              },
+            });
+          }
           await tx.order.update({
             where: { id },
             data: {
@@ -1538,8 +1646,9 @@ export const updateOrderBillSettings = async (req, res) => {
               billRevision: { increment: 1 },
             },
           });
-          const recalculated = await recalcOrderTotal(tx, id);
+          for (const orderId of sessionOrderIds) await recalcOrderTotal(tx, orderId);
           if (order.tableSessionId) await recalcSessionTotal(tx, order.tableSessionId);
+          const recalculated = await loadSessionBill(tx, order);
 
           if (saveAsDefault) {
             const restaurant = await tx.restaurant.findUnique({
@@ -1582,6 +1691,11 @@ export const updateOrderBillSettings = async (req, res) => {
               totalAmount: recalculated.totalAmount,
             },
           });
+          await enqueueOrderSync(tx, {
+            restaurantId: order.restaurantId,
+            orderId: id,
+            trigger: "item_changed",
+          });
           return recalculated;
         }, {
           isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -1615,6 +1729,9 @@ export const updateOrderBillSettings = async (req, res) => {
     if (error?.code === "BILL_LOCKED") {
       return res.status(409).json({ code: error.code, message: error.message });
     }
+    if (error?.code === "EXTERNAL_ORDER_LOCKED") {
+      return res.status(409).json({ code: error.code, message: error.message });
+    }
     if (error?.code === "P2034") {
       return res.status(409).json({
         code: "BILL_CHANGED",
@@ -1641,6 +1758,7 @@ export const updateOrderItem = async (req, res) => {
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
     if (order === "FORBIDDEN") return res.status(403).json({ message: "Accesso negato" });
     if (order.closedAt) return res.status(400).json({ message: "Riapri il conto prima di modificarlo" });
+    await assertOrderContentCanChange(order);
     if (billHasStarted(order.payments)) {
       return res.status(409).json({ message: "Il conto non può essere modificato dopo l'inizio di un pagamento" });
     }
@@ -1648,6 +1766,7 @@ export const updateOrderItem = async (req, res) => {
     if (!currentItem) return res.status(404).json({ message: "Articolo non trovato" });
 
     const result = await prisma.$transaction(async (tx) => {
+      await lockOrderForContentChange(tx, order);
       if (currentItem.menuItem?.trackStock) {
         if (action === "void" && currentItem.status !== "voided") {
           const before = parseNumber(currentItem.menuItem.stockQuantity);
@@ -1735,6 +1854,11 @@ export const updateOrderItem = async (req, res) => {
         reason,
         metadata: { itemId, itemName: currentItem.nameSnapshot, quantity: currentItem.quantity },
       });
+      await enqueueOrderSync(tx, {
+        restaurantId: order.restaurantId,
+        orderId: id,
+        trigger: "item_changed",
+      });
       return { item, order: updated };
     });
 
@@ -1749,6 +1873,9 @@ export const updateOrderItem = async (req, res) => {
   } catch (error) {
     console.error("updateOrderItem error:", error);
     if (error?.code === "INSUFFICIENT_STOCK") return res.status(409).json({ message: error.message });
+    if (error?.code === "EXTERNAL_ORDER_LOCKED") {
+      return res.status(409).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({ message: "Errore durante l'aggiornamento dell'articolo" });
   }
 };
@@ -1762,8 +1889,10 @@ export const reopenOrder = async (req, res) => {
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
     if (order === "FORBIDDEN") return res.status(403).json({ message: "Accesso negato" });
     if (!order.closedAt) return res.status(400).json({ message: "Il conto è già aperto" });
+    await assertOrderContentCanChange(order);
 
     const updated = await prisma.$transaction(async (tx) => {
+      await lockOrderForContentChange(tx, order, { allowClosed: true });
       const result = await tx.order.update({
         where: { id },
         data: {
@@ -1778,6 +1907,22 @@ export const reopenOrder = async (req, res) => {
         include: { table: true, items: true, payments: { orderBy: { createdAt: "asc" } } },
       });
       if (order.tableSessionId) {
+        await tx.order.updateMany({
+          where: {
+            tableSessionId: order.tableSessionId,
+            id: { not: id },
+            status: { not: "cancelled" },
+          },
+          data: {
+            status: "ready",
+            closedAt: null,
+            servedAt: null,
+            billRequestedAt: null,
+            reopenedAt: new Date(),
+            reopenedByUserId: req.user?.userId || null,
+            billRevision: { increment: 1 },
+          },
+        });
         await tx.tableSession.update({
           where: { id: order.tableSessionId },
           data: { status: "open", closedAt: null },
@@ -1816,6 +1961,9 @@ export const reopenOrder = async (req, res) => {
     return res.json({ message: "Conto riaperto", order: updated });
   } catch (error) {
     console.error("reopenOrder error:", error);
+    if (error?.code === "EXTERNAL_ORDER_LOCKED") {
+      return res.status(409).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({ message: "Errore durante la riapertura del conto" });
   }
 };
@@ -1847,6 +1995,7 @@ export const deleteOrder = async (req, res) => {
     if (order.closedAt || order.paymentStatus === "paid") {
       return res.status(400).json({ message: "Un conto chiuso non può essere eliminato. Riaprilo per eventuali correzioni." });
     }
+    await assertOrderCanBeCancelled(order);
 
     await prisma.$transaction(async (tx) => {
       for (const item of order.items) {
@@ -1889,6 +2038,11 @@ export const deleteOrder = async (req, res) => {
         entityId: id,
         reason: "Annullato da amministrazione",
       });
+      await enqueueOrderSync(tx, {
+        restaurantId: order.restaurantId,
+        orderId: id,
+        trigger: "cancelled",
+      });
       if (order.tableSessionId) await recalcSessionTotal(tx, order.tableSessionId);
     });
 
@@ -1910,6 +2064,9 @@ export const deleteOrder = async (req, res) => {
     return res.json({ message: "Ordine annullato e conservato nel registro" });
   } catch (error) {
     console.error("deleteOrder error:", error);
+    if (["EXTERNAL_ORDER_CANCEL_IN_POS", "EXTERNAL_SYNC_IN_PROGRESS"].includes(error?.code)) {
+      return res.status(409).json({ code: error.code, message: error.message });
+    }
     return res.status(500).json({ message: "Errore durante eliminazione ordine" });
   }
 };
@@ -1922,19 +2079,34 @@ export const requestPublicBill = async (req, res) => {
       include: { table: true, restaurant: true, tableSession: true },
     });
     if (!order) return res.status(404).json({ message: "Ordine non trovato" });
-    if (["served", "cancelled"].includes(order.status) || order.closedAt) {
+    if (order.status === "cancelled" || order.closedAt) {
       return res.status(400).json({ message: "Ordine già chiuso" });
     }
 
     const updated = await prisma.$transaction(async (tx) => {
+      await lockRestaurantTable(tx, order.restaurantId, order.tableId);
+      const current = await tx.order.findUnique({ where: { id: order.id } });
+      if (!current || current.closedAt || current.status === "cancelled") {
+        throw new TableSessionConflict("Il conto è già stato chiuso. Chiedi allo staff.", "ORDER_ALREADY_CLOSED");
+      }
       if (order.tableSessionId) {
         await tx.tableSession.update({ where: { id: order.tableSessionId }, data: { status: "closing" } });
+        await tx.order.updateMany({
+          where: { tableSessionId: order.tableSessionId, closedAt: null, status: { not: "cancelled" } },
+          data: { billRequestedAt: new Date() },
+        });
       }
-      return tx.order.update({
+      const result = await tx.order.update({
         where: { id: order.id },
         data: { billRequestedAt: new Date() },
         include: { table: true, restaurant: true, tableSession: true },
       });
+      await enqueueOrderSync(tx, {
+        restaurantId: order.restaurantId,
+        orderId: order.id,
+        trigger: "bill_requested",
+      });
+      return result;
     });
 
     const payload = {
@@ -1954,6 +2126,7 @@ export const requestPublicBill = async (req, res) => {
     emitSocket(req, "table-updated", { ...payload, reason: "bill-requested" });
     return res.json({ message: "Richiesta conto inviata", ok: true, order: updated });
   } catch (error) {
+    if (error instanceof TableSessionConflict) return res.status(409).json({ code: error.code, message: error.message });
     console.error("requestPublicBill error:", error);
     return res.status(500).json({ message: "Errore durante richiesta conto" });
   }

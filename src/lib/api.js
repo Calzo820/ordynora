@@ -137,6 +137,8 @@ async function performFetch(endpoint, options = {}, withAuth = true, attempt = 0
       }
       const apiError = new Error(data?.message || `Errore API (${response.status})`);
       apiError.status = response.status;
+      apiError.code = data?.code || null;
+      apiError.details = data?.details || data?.summary || null;
       apiError.transient = response.status >= 500 || response.status === 429;
       throw apiError;
     }
@@ -197,6 +199,14 @@ export async function apiPost(endpoint, body = {}, extraHeaders = {}, options = 
 export async function apiPatch(endpoint, body = {}, extraHeaders = {}) {
   return apiFetch(endpoint, {
     method: "PATCH",
+    headers: extraHeaders,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiPut(endpoint, body = {}, extraHeaders = {}) {
+  return apiFetch(endpoint, {
+    method: "PUT",
     headers: extraHeaders,
     body: JSON.stringify(body),
   });

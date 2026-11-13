@@ -28,14 +28,13 @@ export default function AppInstallPrompt() {
     return () => window.removeEventListener("ordynora:show-install-banner", handleReopen);
   }, []);
 
-  const relevantPath = location.pathname === "/"
-    || APP_PATHS.some((path) => location.pathname.startsWith(path));
+  const relevantPath = APP_PATHS.some((path) => location.pathname.startsWith(path));
   if (location.pathname.startsWith("/staff")) return null;
   if (!relevantPath || pwa.installed || dismissed || !pwa.available) return null;
 
   async function install() {
     const result = await pwa.requestInstall();
-    if (result.status === "manual" || result.status === "dismissed") {
+    if (!result || result.status === "manual" || result.status === "dismissed") {
       setManualHelp(true);
     }
   }

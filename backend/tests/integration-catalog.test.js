@@ -6,12 +6,11 @@ import {
   sanitizeProviderCredentials,
 } from "../integrations/catalog.js";
 
-test("catalog exposes the three supported Italian management-system paths", () => {
+test("catalog exposes only the two connectors that are actually implemented", () => {
   const catalog = getPublicProviderCatalog();
   assert.deepEqual(catalog.map((provider) => provider.id), [
     "tilby",
     "teamsystem_cassa_in_cloud",
-    "passepartout_menu",
   ]);
   assert.equal(catalog.every((provider) => provider.officialDocs.startsWith("https://")), true);
 });
@@ -21,7 +20,7 @@ test("provider configuration keeps only allow-listed fields", () => {
     salesPointId: "12345",
     baseUrl: "http://attacker.invalid",
   });
-  assert.deepEqual(config, { salesPointId: "12345" });
+  assert.deepEqual(config, { salesPointId: "12345", dueMinutes: "15" });
   assert.throws(
     () => sanitizeProviderConfig("teamsystem_cassa_in_cloud", { salesPointId: "123-not-valid" }),
     /solo numeri/

@@ -1,4 +1,6 @@
 import prisma from "../lib/prisma.js";
+import { isIntegrationEncryptionConfigured } from "../lib/integrationCrypto.js";
+import { integrationWorkerStatus } from "./integrationWorker.service.js";
 
 let monitorTimer = null;
 let lastHealthy = null;
@@ -22,15 +24,31 @@ export async function collectSystemHealth() {
       lastSuccessAt: null,
       uploaded: false,
     },
+    integrations: {
+      ok: true,
+      configured: isIntegrationEncryptionConfigured(),
+      workerEnabled: false,
+      lastPollAt: null,
+      activeRestaurants: 0,
+      pending: 0,
+      retrying: 0,
+      failed: 0,
+      blocked: 0,
+      oldestPendingAt: null,
+    },
   };
 
   try {
-    const [, latestBackup] = await Promise.all([
+    const [, latestBackup, integrations] = await Promise.all([
       prisma.$queryRaw`SELECT 1`,
       prisma.errorLog.findFirst({
         where: { source: "backup-success", level: "info" },
         orderBy: { createdAt: "desc" },
         select: { createdAt: true, metadata: true },
+      }),
+      prisma.posIntegration.findMany({
+        where: { status: { in: ["connected", "degraded"] } },
+        select: { id: true, config: true },
       }),
     ]);
     checks.database = { ok: true };
@@ -43,11 +61,53 @@ export async function collectSystemHealth() {
       && checks.backups.configured
       && Boolean(lastSuccessAt)
       && Date.now() - new Date(lastSuccessAt).getTime() <= maxAgeMs;
+
+    const activeIds = integrations
+      .filter((integration) => integration.config?.syncMode === "active")
+      .map((integration) => integration.id);
+    const worker = integrationWorkerStatus();
+    checks.integrations.workerEnabled = worker.enabled;
+    checks.integrations.lastPollAt = worker.lastPollAt;
+    checks.integrations.activeRestaurants = activeIds.length;
+    if (activeIds.length) {
+      const [groups, oldestPending] = await Promise.all([
+        prisma.posIntegrationJob.groupBy({
+          by: ["status"],
+          where: { integrationId: { in: activeIds } },
+          _count: { _all: true },
+        }),
+        prisma.posIntegrationJob.findFirst({
+          where: {
+            integrationId: { in: activeIds },
+            status: { in: ["pending", "processing", "retrying"] },
+          },
+          orderBy: { createdAt: "asc" },
+          select: { createdAt: true },
+        }),
+      ]);
+      for (const group of groups) {
+        if (Object.hasOwn(checks.integrations, group.status)) {
+          checks.integrations[group.status] = group._count._all;
+        }
+      }
+      checks.integrations.oldestPendingAt = oldestPending?.createdAt || null;
+      const intervalMs = Math.max(500, Number(process.env.INTEGRATION_WORKER_INTERVAL_MS || 2000));
+      const workerFresh = Boolean(worker.lastPollAt)
+        && Date.now() - new Date(worker.lastPollAt).getTime() <= Math.max(60000, intervalMs * 5);
+      const queueFresh = !oldestPending
+        || Date.now() - new Date(oldestPending.createdAt).getTime() <= 10 * 60 * 1000;
+      checks.integrations.ok = checks.integrations.configured
+        && worker.enabled
+        && workerFresh
+        && queueFresh
+        && checks.integrations.failed === 0
+        && checks.integrations.blocked === 0;
+    }
   } catch (error) {
     checks.database = { ok: false, code: error?.code || "database_unavailable" };
   }
 
-  const healthy = checks.database.ok;
+  const healthy = checks.database.ok && checks.integrations.ok;
   return {
     ok: healthy,
     service: "ordynora-backend",

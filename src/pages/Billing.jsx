@@ -233,7 +233,12 @@ export default function Billing() {
             </div>
           </section>
 
-          {queryStatus === "success" ? <div style={successBox}>Pagamento avviato correttamente. Stripe aggiorna lo stato via webhook.</div> : null}
+          {queryStatus === "success" ? (
+            <div style={{ ...successBox, display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+              <span>Pagamento avviato correttamente. Ora completa il ristorante e scegli se usare Ordynora da sola o con il tuo gestionale.</span>
+              <a href="/onboarding" style={{ ...primaryBtn, textDecoration: "none" }}>Continua configurazione</a>
+            </div>
+          ) : null}
           {queryStatus === "cancelled" ? <div style={warnBox}>Checkout annullato. Puoi riprovare quando vuoi.</div> : null}
           {error ? <div style={errorBox}>{error}</div> : null}
           {paymentProblem ? (

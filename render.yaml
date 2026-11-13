@@ -3,7 +3,7 @@ services:
     name: ordynora-backend
     env: node
     rootDir: backend
-    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy
+    buildCommand: npm ci --include=dev && npx prisma generate
     startCommand: npm run start
     healthCheckPath: /ready
     autoDeploy: true
@@ -26,6 +26,22 @@ services:
         sync: false
       - key: CORS_ORIGIN
         sync: false
+      - key: INTEGRATION_ENCRYPTION_KEY
+        sync: false
+      - key: INTEGRATION_WORKER_ENABLED
+        value: "true"
+      - key: INTEGRATION_WORKER_INTERVAL_MS
+        value: "2000"
+      - key: INTEGRATION_WORKER_CONCURRENCY
+        value: "4"
+      - key: INTEGRATION_MAX_ATTEMPTS
+        value: "8"
+      - key: INTEGRATION_HTTP_TIMEOUT_MS
+        value: "15000"
+      - key: INTEGRATION_JOB_RETENTION_DAYS
+        value: "30"
+      - key: INTEGRATION_DISCOVERY_CACHE_MS
+        value: "120000"
       - key: RESERVATION_SLOT_MINUTES
         value: "120"
       - key: STRIPE_SECRET_KEY

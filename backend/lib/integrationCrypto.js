@@ -9,6 +9,7 @@ export class IntegrationEncryptionError extends Error {
     super(message);
     this.name = "IntegrationEncryptionError";
     this.code = code;
+    this.retryable = false;
   }
 }
 
@@ -67,11 +68,20 @@ export function decryptIntegrationCredentials(payload) {
   }
 
   try {
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, Buffer.from(ivValue, "base64url"));
+    const decodeCanonical = (value, size = null) => {
+      const bytes = Buffer.from(value, "base64url");
+      if (!/^[A-Za-z0-9_-]+$/.test(value) || bytes.toString("base64url") !== value
+        || (size !== null && bytes.length !== size)) throw new Error("Invalid encoded credentials");
+      return bytes;
+    };
+    const iv = decodeCanonical(ivValue, 12);
+    const tag = decodeCanonical(tagValue, 16);
+    const encrypted = decodeCanonical(encryptedValue);
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
     decipher.setAAD(AAD);
-    decipher.setAuthTag(Buffer.from(tagValue, "base64url"));
+    decipher.setAuthTag(tag);
     const decrypted = Buffer.concat([
-      decipher.update(Buffer.from(encryptedValue, "base64url")),
+      decipher.update(encrypted),
       decipher.final(),
     ]);
     const parsed = JSON.parse(decrypted.toString("utf8"));

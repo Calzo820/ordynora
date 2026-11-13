@@ -34,6 +34,11 @@ import { validateJsonBody } from "./middleware/validateJson.js";
 import { requestContext } from "./middleware/requestContext.js";
 import { startBackupScheduler, stopBackupScheduler } from "./services/backup.service.js";
 import { startHealthMonitor, stopHealthMonitor } from "./services/healthMonitor.service.js";
+import {
+  integrationWorkerStatus,
+  startIntegrationWorker,
+  stopIntegrationWorker,
+} from "./services/integrationWorker.service.js";
 
 dotenv.config();
 
@@ -253,7 +258,31 @@ app.get("/ready", async (_req, res) => {
       prisma.$queryRaw`SELECT 1`,
       prisma.reservation.findFirst({ select: { id: true } }),
     ]);
-    res.json({ ok: true, database: "connected", reservations: "ready", timestamp: new Date().toISOString() });
+    const integrationWorker = integrationWorkerStatus();
+    const intervalMs = Math.max(500, Number(process.env.INTEGRATION_WORKER_INTERVAL_MS || 2000));
+    const workerFresh = Boolean(integrationWorker.lastPollAt)
+      && Date.now() - new Date(integrationWorker.lastPollAt).getTime() <= Math.max(60000, intervalMs * 5);
+    const integrationStatus = !integrationWorker.enabled
+      ? "worker_disabled"
+      : workerFresh
+        ? "worker_ready"
+        : integrationWorker.lastError
+          ? "worker_degraded"
+          : "worker_starting";
+    res.json({
+      ok: true,
+      database: "connected",
+      reservations: "ready",
+      integrations: integrationStatus,
+      integrationWorker: {
+        enabled: integrationWorker.enabled,
+        running: integrationWorker.running,
+        lastPollAt: integrationWorker.lastPollAt,
+        lastSuccessAt: integrationWorker.lastSuccessAt,
+        lastErrorAt: integrationWorker.lastError?.at || null,
+      },
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     res.status(503).json({
       ok: false,
@@ -330,11 +359,13 @@ if (process.env.NODE_ENV !== "test") {
     console.log(`Server attivo su http://localhost:${PORT}`);
     startHealthMonitor();
     startBackupScheduler();
+    startIntegrationWorker();
   });
 
   const shutdown = () => {
     stopHealthMonitor();
     stopBackupScheduler();
+    stopIntegrationWorker();
     server.close(() => prisma.$disconnect().finally(() => process.exit(0)));
     setTimeout(() => process.exit(1), 10000).unref();
   };
